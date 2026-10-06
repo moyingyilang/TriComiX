@@ -19,3 +19,5 @@ dependencyResolutionManagement {
 
 include(":core")
 include(":source-jm")
+include(":source-pica")
+include(":source-eh")
