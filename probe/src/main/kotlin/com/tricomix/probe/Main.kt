@@ -38,6 +38,10 @@ fun main(args: Array<String>) = runBlocking {
     // 密码优先取环境变量：放在命令行参数里会出现在本机进程列表（ps）中
     val pass = opts["pass"] ?: System.getenv("TRICOMIX_PASS")
 
+    if (opts.containsKey("selfcheck")) {
+        kotlin.system.exitProcess(SelfCheck.run())
+    }
+
     println("=== TriComiX 探针 ===")
     println("源=$sourceName  页=$page  查询=${query ?: "(无，走首页)"}  dryRun=$dry  full=$full  fav=$fav  登录=${if (user != null) "是" else "否"}")
 
