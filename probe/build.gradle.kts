@@ -15,5 +15,5 @@ dependencies {
 
 application {
     mainClass.set("com.tricomix.probe.MainKt")
-    applicationDefaultJvmArgs = listOf("-Dfile.encoding=UTF-8")
+    applicationDefaultJvmArgs = listOf("-Dfile.encoding=UTF-8", "-Djava.net.preferIPv4Stack=true")
 }
