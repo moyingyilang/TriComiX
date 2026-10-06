@@ -1,5 +1,8 @@
 package com.tricomix.eh
 
+import com.tricomix.core.source.SourceCredential
+import com.tricomix.core.source.SourceError
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -31,18 +34,23 @@ class EhSourceMappingTest {
 
     @Test
     fun `缺缩略图与上传者时为 null，不编造`() {
-        val item = EhGalleryItem(gid = 1L, token = "t", title = "T")
-        val comic = item.toComic()
+        val comic = EhGalleryItem(gid = 1L, token = "t", title = "T").toComic()
         assertEquals(null, comic.coverUrl)
         assertEquals(null, comic.author)
     }
 
+    /**
+     * 未实现的能力必须**明确报 Unsupported**，而不是静默返回空数据。
+     *
+     * 注意这是个"移动靶"：一旦某个方法被实现，这里就要换一个仍未实现的方法
+     * （已被它绊了三次：detail、pages 先后被实现）。目前仍未实现的是 login / favorites / history。
+     * 这里选 login：它在第一行就返回，不触发任何网络请求。
+     */
     @Test
-    fun `未实现的方法返回 Unsupported 而不是空数据`() {
-        // 注意：detail 已于后续实现，这里改用仍未实现的 pages，且不触发任何网络请求
+    fun `未实现的能力返回 Unsupported 而不是空数据`() {
         val source = EhSource(host = EhHost.E_HENTAI)
-        val pages = kotlinx.coroutines.runBlocking { source.pages("1|t") }
-        assertTrue(pages.isFailure)
-        assertTrue(pages.exceptionOrNull() is com.tricomix.core.source.SourceError.Unsupported)
+        val result = runBlocking { source.login(SourceCredential(emptyMap())) }
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is SourceError.Unsupported, "实际：${result.exceptionOrNull()}")
     }
 }

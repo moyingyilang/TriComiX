@@ -3,6 +3,8 @@ package com.tricomix.eh
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
@@ -37,6 +39,18 @@ class EhClient(
             response.body?.string().orEmpty()
         }
     }
+
+    /** `/api.php` 需要 JSON 请求体（不是表单）。 */
+    suspend fun postJson(url: String, json: String, referer: String? = null): String =
+        withContext(Dispatchers.IO) {
+            val body = json.toRequestBody("application/json; charset=utf-8".toMediaType())
+            val builder = Request.Builder().url(url).header("User-Agent", userAgent).post(body)
+            if (referer != null) builder.header("Referer", referer)
+            http.newCall(builder.build()).execute().use { response ->
+                if (!response.isSuccessful) throw IllegalStateException("HTTP ${response.code}：$url")
+                response.body?.string().orEmpty()
+            }
+        }
 
     suspend fun postForm(url: String, fields: Map<String, String>, referer: String? = null): String =
         withContext(Dispatchers.IO) {
