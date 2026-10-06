@@ -1,6 +1,5 @@
 package com.tricomix.eh
 
-import com.tricomix.core.source.SourceCredential
 import com.tricomix.core.source.SourceError
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -43,13 +42,13 @@ class EhSourceMappingTest {
      * 未实现的能力必须**明确报 Unsupported**，而不是静默返回空数据。
      *
      * 注意这是个"移动靶"：一旦某个方法被实现，这里就要换一个仍未实现的方法
-     * （已被它绊了三次：detail、pages 先后被实现）。目前仍未实现的是 login / favorites / history。
-     * 这里选 login：它在第一行就返回，不触发任何网络请求。
+     * （已被它绊了四次：detail、pages、login 先后被实现）。目前仍未实现的是 favorites / history。
+     * 这里选 favorites：它在第一行就返回，不触发任何网络请求。
      */
     @Test
     fun `未实现的能力返回 Unsupported 而不是空数据`() {
         val source = EhSource(host = EhHost.E_HENTAI)
-        val result = runBlocking { source.login(SourceCredential(emptyMap())) }
+        val result = runBlocking { source.favorites(1) }
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is SourceError.Unsupported, "实际：${result.exceptionOrNull()}")
     }

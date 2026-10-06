@@ -126,3 +126,22 @@ internal object FlatJson {
         }
     }
 }
+
+/**
+ * 登录（`EhEngine.signIn` 的形状）：POST 到论坛登录页，字段为
+ * `UserName` / `PassWord` / `submit=Log me in` / `CookieDate=1` / `temporary_https=off`。
+ * 成功后 cookie 会落到 [EhCookieJar]，那个 cookie 就是登录态。
+ */
+object EhSignIn {
+
+    const val URL: String = "https://forums.e-hentai.org/index.php?act=Login&CODE=01"
+    const val REFERER: String = "https://forums.e-hentai.org/index.php?act=Login&CODE=00"
+
+    fun form(userName: String, password: String): Map<String, String> = mapOf(
+        "UserName" to userName,
+        "PassWord" to password,
+        "submit" to "Log me in",
+        "CookieDate" to "1",
+        "temporary_https" to "off",
+    )
+}

@@ -30,13 +30,23 @@ class EhSource(
 
     override val id: String = "eh"
     override val displayName: String = "E-Hentai"
-    override val capabilities: Set<Capability> = setOf(Capability.SEARCH, Capability.HOME)
+    override val capabilities: Set<Capability> = setOf(Capability.LOGIN, Capability.SEARCH, Capability.HOME)
 
     private val url = EhUrl(host)
 
-    override suspend fun login(credential: SourceCredential): Result<Session> =
-        Result.failure(SourceError.Unsupported("EH 登录尚未接入（表单登录与 cookie 已在 EhClient/EhCookieJar 备好）"))
-
+    /** 表单登录：成功后 cookie 存进 [EhCookieJar]，该站登录态就是 cookie。 */
+    override suspend fun login(credential: SourceCredential): Result<Session> = src {
+        val user = credential.fields["username"] ?: credential.fields["email"]
+            ?: throw SourceError.Auth("缺少 username")
+        val pass = credential.fields["password"] ?: throw SourceError.Auth("缺少 password")
+        val html = client.postForm(
+            url = EhSignIn.URL,
+            fields = EhSignIn.form(user, pass),
+            referer = EhSignIn.REFERER,
+        )
+        val name = EhSignInParser.parse(html)
+        Session(mapOf("username" to name))
+    }
     override suspend fun logout() {
         client.cookieJar.clear()
     }
