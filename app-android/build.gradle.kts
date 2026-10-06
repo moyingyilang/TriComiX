@@ -38,6 +38,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":source-jm"))
     implementation(project(":source-pica"))
     implementation(project(":source-eh"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")

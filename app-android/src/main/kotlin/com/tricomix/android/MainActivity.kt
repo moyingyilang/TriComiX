@@ -87,8 +87,11 @@ private fun App() {
     var screen by remember { mutableStateOf<Screen>(Screen.Search) }
     val scope = rememberCoroutineScope()
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var jmSource by remember { mutableStateOf<ComicSource?>(null) }
     fun source(): ComicSource = when (sourceName) {
         "Pica" -> PicaSource()
+        "JM" -> jmSource ?: JmSources.create(context).also { jmSource = it }
         else -> EhSource(EhClient(), EhHost.E_HENTAI)
     }
 
@@ -97,7 +100,7 @@ private fun App() {
             TopAppBar(
                 title = { Text("TriComiX · $sourceName") },
                 actions = {
-                    Button(onClick = { sourceName = if (sourceName == "EH") "Pica" else "EH" }) {
+                    Button(onClick = { sourceName = when (sourceName) { "EH" -> "Pica"; "Pica" -> "JM"; else -> "EH" } }) {
                         Text("切换源")
                     }
                 },
