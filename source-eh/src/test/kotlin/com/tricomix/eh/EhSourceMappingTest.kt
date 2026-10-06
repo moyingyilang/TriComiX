@@ -39,9 +39,10 @@ class EhSourceMappingTest {
 
     @Test
     fun `未实现的方法返回 Unsupported 而不是空数据`() {
+        // 注意：detail 已于后续实现，这里改用仍未实现的 pages，且不触发任何网络请求
         val source = EhSource(host = EhHost.E_HENTAI)
-        val detail = kotlinx.coroutines.runBlocking { source.detail("1|t") }
-        assertTrue(detail.isFailure)
-        assertTrue(detail.exceptionOrNull() is com.tricomix.core.source.SourceError.Unsupported)
+        val pages = kotlinx.coroutines.runBlocking { source.pages("1|t") }
+        assertTrue(pages.isFailure)
+        assertTrue(pages.exceptionOrNull() is com.tricomix.core.source.SourceError.Unsupported)
     }
 }

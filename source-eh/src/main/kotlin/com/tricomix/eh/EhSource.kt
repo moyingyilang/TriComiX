@@ -56,11 +56,16 @@ class EhSource(
         Paged(items = items.map { it.toComic() }, page = page, hasMore = items.isNotEmpty())
     }
 
-    override suspend fun detail(comicId: String): Result<ComicDetail> =
-        Result.failure(SourceError.Unsupported("EH 详情页解析尚未接入"))
+    override suspend fun detail(comicId: String): Result<ComicDetail> = src {
+        val (gid, token) = EhDetailMapping.parseComicId(comicId)
+        val html = client.get(url.gallery(gid, token))
+        val detail = GalleryDetailParser.parse(html, host.baseUrl)
+        EhDetailMapping.toComicDetail(comicId, detail, fallbackTitle = null)
+    }
 
+    /** EH 没有章节：整个作品就是一个"章节"（见 [EhDetailMapping] 的说明）。 */
     override suspend fun chapters(comicId: String): Result<List<Chapter>> =
-        Result.failure(SourceError.Unsupported("EH 的\"章节\"就是作品内的图片分页，见 pages()"))
+        detail(comicId).map { it.chapters }
 
     override suspend fun pages(chapterId: String): Result<List<PageRef>> =
         Result.failure(SourceError.Unsupported("EH 图片列表解析尚未接入（含 hath）"))
