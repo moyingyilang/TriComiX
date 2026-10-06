@@ -85,6 +85,8 @@ class EhSource(
         val tokens = detail.pageTokens
         val count = maxOf(tokens.size, detail.pages ?: 0)
         if (count == 0) throw SourceError.Parse("详情页既没有页链接也没有页数")
+        // 首批之外的页用 gtoken 补（详情页只内联首批链接）
+        val keys = EhPageKeys.complete(client, host, gid, token, showKey, count, tokens)
         (0 until count).map { i ->
             PageRef(
                 chapterId = chapterId,
@@ -93,7 +95,7 @@ class EhSource(
                     put("gid", gid.toString())
                     put("token", token)
                     put("showkey", showKey)
-                    tokens.getOrNull(i)?.let { put("imgkey", it) }
+                    keys.getOrNull(i)?.let { put("imgkey", it) }
                 },
             )
         }
