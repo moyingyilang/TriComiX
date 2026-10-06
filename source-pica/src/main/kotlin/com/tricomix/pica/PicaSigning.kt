@@ -6,52 +6,51 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * PicACG 请求签名（协议层）。
  *
- * 依据：本项目私有研究存档 `02-api-protocol.md` 的静态分析结论（互操作性研究）。
- * **注意**：签名密钥来自对方客户端的原生库，本仓库**不包含任何密钥**；
- * 密钥由调用方在运行时注入（[PicaSigning] 只接受字节数组）。
+ * ## 依据（重要：两份存档文档曾冲突，以原生层结论为准）
  *
- * 签名原文按顺序拼接：[baseUrl, path, time, nonce, httpMethod, apiKey, appVersion, buildVersion]，
- * 整体转小写后做 HMAC-SHA256，输出小写十六进制。
+ * - 存档 `docs/02-api-protocol.md` 曾写"8 段拼接，含 baseUrl/appVersion/buildVersion"；
+ * - 存档 `docs/03-native-jni.md` 的原生层分析给出的是 **5 段**：
+ *   `lower( path + time + nonce + httpMethod + apiKey )`，并明确注明**不含** baseUrl/appVersion/buildVersion。
+ *
+ * 原生层是从实际代码得出的，因此这里采用 5 段形式。（我最初按 API 文档实现成 8 段，是错的。）
+ *
+ * 密钥由调用方注入；若要使用内置常量（方案 A），用 [signWithEmbeddedKey]。
  */
 object PicaSigning {
 
-    const val BASE_URL = "https://picaapi.picacomic.com/"
-
-    /** 拼接签名原文（尚未转小写，便于单测逐段核对）。 */
+    /** 拼接签名原文（未转小写，便于单测逐段核对）。 */
     fun buildInput(
-        baseUrl: String,
         path: String,
         time: Long,
         nonce: String,
         httpMethod: String,
         apiKey: String,
-        appVersion: String,
-        buildVersion: String,
     ): String = buildString {
-        append(baseUrl); append(path); append(time); append(nonce)
-        append(httpMethod); append(apiKey); append(appVersion); append(buildVersion)
+        append(path); append(time); append(nonce); append(httpMethod); append(apiKey)
     }
 
-    /**
-     * 计算签名。
-     * @param signingKey 由调用方注入的 HMAC 密钥（本仓库不保存任何密钥）
-     */
+    /** 用调用方提供的密钥计算签名（小写十六进制，64 字符）。 */
     fun sign(
         signingKey: ByteArray,
-        baseUrl: String,
         path: String,
         time: Long,
         nonce: String,
         httpMethod: String,
-        apiKey: String,
-        appVersion: String,
-        buildVersion: String,
-    ): String {
-        val input = buildInput(baseUrl, path, time, nonce, httpMethod, apiKey, appVersion, buildVersion)
-            .lowercase()
+        apiKey: String = PicaCredentials.API_KEY,
+    ): String = hmacSha256Hex(signingKey, buildInput(path, time, nonce, httpMethod, apiKey).lowercase())
+
+    /** 方案 A：使用内置密钥与内置 api-key。 */
+    fun signWithEmbeddedKey(
+        path: String,
+        time: Long,
+        nonce: String,
+        httpMethod: String,
+    ): String = sign(PicaCredentials.signingKeyBytes, path, time, nonce, httpMethod)
+
+    private fun hmacSha256Hex(key: ByteArray, message: String): String {
         val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(signingKey, "HmacSHA256"))
-        return mac.doFinal(input.toByteArray(Charsets.UTF_8)).toHexLower()
+        mac.init(SecretKeySpec(key, "HmacSHA256"))
+        return mac.doFinal(message.toByteArray(Charsets.UTF_8)).toHexLower()
     }
 
     private fun ByteArray.toHexLower(): String {
@@ -66,8 +65,8 @@ object PicaSigning {
 }
 
 /**
- * 服务器时间同步：服务端在响应头返回 `Server-Time`，客户端把它与本地时间的差值持久化，
- * 后续请求的 `time` 字段加上该偏移（容忍客户端时钟漂移，避免签名因时间戳偏差失效）。
+ * 服务器时间同步：服务端在响应头返回 `Server-Time`，客户端把与本地时间的差值持久化，
+ * 后续请求的 `time` 加上该偏移（容忍时钟漂移，避免签名因时间戳偏差失效）。
  */
 class PicaTimeSync(initialOffsetSeconds: Long = 0L) {
 
@@ -75,11 +74,9 @@ class PicaTimeSync(initialOffsetSeconds: Long = 0L) {
     var offsetSeconds: Long = initialOffsetSeconds
         private set
 
-    /** 用一次响应头更新偏移。 */
     fun updateFrom(serverTimeSeconds: Long, localTimeSeconds: Long) {
         offsetSeconds = serverTimeSeconds - localTimeSeconds
     }
 
-    /** 当前应使用的签名时间戳。 */
     fun timestamp(localTimeSeconds: Long): Long = localTimeSeconds + offsetSeconds
 }
