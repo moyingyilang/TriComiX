@@ -1,0 +1,29 @@
+# Gradle / Kotlin
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+local.properties
+
+# 构建产物（不进源码仓库）
+dist-*/
+*.apk
+*.aar
+*.exe
+*.deb
+*.rpm
+*.AppImage
+*.zip
+*.tar.gz
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 密钥与凭据：绝不入库
+*.key
+*.keystore
+*.jks
+keystore.properties
+secrets.properties
+.env
