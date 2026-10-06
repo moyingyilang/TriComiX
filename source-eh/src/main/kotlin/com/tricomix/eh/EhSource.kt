@@ -19,7 +19,7 @@ import com.tricomix.core.source.SourceError
  *
  * 已实现：`home` / `search`（列表解析）、`detail` / `chapters`（详情页解析）、
  * `pages`（详情页里的逐页 `imgkey` + `showkey`）、`imageRequest`（`showpage` 换图片地址，含 `hath`）。
- * 未实现：`login`、`favorites`、`history` —— 一律返回 [SourceError.Unsupported]，不静默返回空数据。
+ * 未实现：仅 `history`（该站历史是客户端本地功能，服务端无端点）—— 返回 [SourceError.Unsupported]，不静默返回空数据。
  *
  * **未验证**：从未对真实站点发过请求；页面选择器与 JS 变量都来自静态阅读。
  */
@@ -64,6 +64,9 @@ class EhSource(
     override suspend fun detail(comicId: String): Result<ComicDetail> = src {
         val (gid, token) = EhDetailMapping.parseComicId(comicId)
         val detail = GalleryDetailParser.parse(client.get(url.gallery(gid, token)), host.baseUrl)
+        if (!detail.looksParsed()) {
+            throw SourceError.Parse("详情页解析不出任何字段（站点结构可能已变）")
+        }
         EhDetailMapping.toComicDetail(comicId, detail, fallbackTitle = null)
     }
 

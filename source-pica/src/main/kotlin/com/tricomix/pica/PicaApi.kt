@@ -125,7 +125,7 @@ object PicaJson {
     fun pageOf(root: JsonElement, key: String): JsonObject? =
         root.jsonObject["data"]?.jsonObject?.get(key) as? JsonObject
 
-    /** 外壳里的状态码（缺省视为 200）。 */
-    fun code(root: JsonElement): Int =
-        runCatching { root.jsonObject["code"]?.jsonPrimitive?.content?.toInt() ?: 200 }.getOrDefault(200)
+    /** 外壳里的状态码；**缺失时返回 null**（不默认成成功）。 */
+    fun code(root: JsonElement): Int? =
+        runCatching { root.jsonObject["code"]?.jsonPrimitive?.content?.toInt() }.getOrNull()
 }

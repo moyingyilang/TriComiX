@@ -53,7 +53,9 @@ class PicaClient(
             )
         ).toString().toRequestBody("application/json".toMediaType())
         val root = execute(PicaApi.signIn(), "POST", body)
-        token = extractToken(root)
+        val token = extractToken(root)
+            ?: throw IllegalStateException("登录响应里没有 token（响应形状可能已变），不当作登录成功")
+        this.token = token
         return root
     }
 

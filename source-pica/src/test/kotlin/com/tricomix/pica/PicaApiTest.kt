@@ -102,3 +102,19 @@ class PicaApiTest {
         assertTrue(root.jsonObject.containsKey("message"))
     }
 }
+
+/** 追加：code 缺失时**不能**默认成成功（这是"静默失败"的高发点）。 */
+class PicaCodeFieldTest {
+
+    @Test
+    fun `缺少 code 字段时返回 null 而不是 200`() {
+        val root = PicaJson.json.parseToJsonElement("""{"data":{"comics":{"docs":[]}}}""")
+        assertEquals(null, PicaJson.code(root))
+    }
+
+    @Test
+    fun `有 code 字段时如实返回`() {
+        assertEquals(200, PicaJson.code(PicaJson.json.parseToJsonElement("""{"code":200,"data":{}}""")))
+        assertEquals(401, PicaJson.code(PicaJson.json.parseToJsonElement("""{"code":401,"data":{}}""")))
+    }
+}

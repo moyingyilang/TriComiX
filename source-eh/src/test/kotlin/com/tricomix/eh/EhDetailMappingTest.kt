@@ -58,3 +58,21 @@ class EhDetailMappingTest {
         assertEquals("兜底", cd.comic.title)
     }
 }
+
+/** 追加：详情页解析结果"是否看起来有效"的判定。 */
+class EhLooksParsedTest {
+
+    @Test
+    fun `全空视为解析失败`() {
+        val empty = EhGalleryDetail(null, null, null, null, null, null, null, null, null, emptyList(), null)
+        assertEquals(false, empty.looksParsed())
+    }
+
+    @Test
+    fun `有标题或有页链接都算有效`() {
+        val empty = EhGalleryDetail(null, null, null, null, null, null, null, null, null, emptyList(), null)
+        assertEquals(true, empty.copy(title = "T").looksParsed())
+        assertEquals(true, empty.copy(pageTokens = listOf("abc123")).looksParsed())
+        assertEquals(true, empty.copy(pages = 3).looksParsed())
+    }
+}

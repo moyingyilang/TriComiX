@@ -45,3 +45,12 @@ internal object EhDetailMapping {
         )
     }
 }
+
+/**
+ * 详情页"看起来解析成功了吗"的判定。
+ *
+ * 站点改版时解析器会安静地返回一堆 null —— 那必须变成**明确的解析失败**，
+ * 而不是一个标题为空的作品（那种数据比报错更糟：它会被当成正常内容展示）。
+ */
+internal fun EhGalleryDetail.looksParsed(): Boolean =
+    title != null || coverUrl != null || uploader != null || pageTokens.isNotEmpty() || (pages ?: 0) > 0
