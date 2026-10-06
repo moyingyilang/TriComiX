@@ -24,8 +24,8 @@ import com.tricomix.core.source.SourceError
  * **未验证**：从未对真实站点发过请求；页面选择器与 JS 变量都来自静态阅读。
  */
 class EhSource(
-    private val client: EhClient = EhClient(),
-    private val host: EhHost = EhHost.E_HENTAI,
+    val client: EhClient = EhClient(),
+    val host: EhHost = EhHost.E_HENTAI,
 ) : ComicSource {
 
     override val id: String = "eh"

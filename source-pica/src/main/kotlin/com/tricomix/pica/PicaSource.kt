@@ -24,7 +24,7 @@ import kotlinx.serialization.json.JsonElement
  * - `home()`：参照实现里没有"首页/推荐"端点，标为未实现；
  * - `history()`：同上。
  */
-class PicaSource(private val client: PicaClient = PicaClient()) : ComicSource {
+class PicaSource(val client: PicaClient = PicaClient()) : ComicSource {
 
     override val id: String = "pica"
     override val displayName: String = "PicACG"

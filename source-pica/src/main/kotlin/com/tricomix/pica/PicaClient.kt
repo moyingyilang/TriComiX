@@ -42,7 +42,6 @@ class PicaClient(
     /** 登录后由 [signIn] 写入；后续请求带上 `authorization`。 */
     @Volatile
     var token: String? = null
-        private set
 
     /** `/auth/sign-in`：成功后保存 token。 */
     suspend fun signIn(email: String, password: String): JsonElement {
