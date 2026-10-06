@@ -33,6 +33,12 @@ class PicaClient(
     /** 清空令牌（登出）。 */
     fun signOut() { token = null }
 
+    /**
+     * 当前图片档位。协议里档位是通过 `image-quality` **请求头**下发的，
+     * 因此它是客户端级设置（不是每个 URL 的参数）。
+     */
+    var imageQuality: PicaImageQuality = PicaImageQuality.NORMAL
+
     /** 登录后由 [signIn] 写入；后续请求带上 `authorization`。 */
     @Volatile
     var token: String? = null
@@ -78,6 +84,7 @@ class PicaClient(
             nonce = nonce,
             appUuid = appUuid,
             token = token,
+            imageQuality = imageQuality.value,
             signingKey = signingKey,
         )
         val builder = Request.Builder().url(PicaApi.BASE_URL + path)

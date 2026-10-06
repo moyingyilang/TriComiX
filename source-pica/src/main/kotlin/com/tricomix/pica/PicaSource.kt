@@ -96,9 +96,22 @@ class PicaSource(private val client: PicaClient = PicaClient()) : ComicSource {
 
     override suspend fun imageRequest(page: PageRef, quality: ImageQuality): Result<ImageRequest> = src {
         val url = page.extra["url"] ?: throw SourceError.Parse("PageRef 缺少 url")
-        // 质量档位在 PicACG 是通过 `image-quality` 请求头生效的，属于请求层而非 URL 层；
-        // 这里如实不吞掉这个信息，但统一模型目前只承载 URL。
+        // 档位在 PicACG 是 `image-quality` 请求头，属于请求层而不是 URL 层：
+        // 所以这里把它落到客户端上，后续请求（含真正的图片下载）都会带上。
+        client.imageQuality = toPicaQuality(quality)
         ImageRequest(url = url)
+    }
+
+    /**
+     * core 的四档到 PicACG 三档的映射。
+     *
+     * PicACG 只有 `original` / `normal` / `low`。core 的 MEDIUM 与 HIGH 都落在 `normal`：
+     * 硬把 HIGH 映射成 original 会改变语义（原图通常大得多，用户未必想要）。
+     */
+    internal fun toPicaQuality(quality: ImageQuality): PicaImageQuality = when (quality) {
+        ImageQuality.LOW -> PicaImageQuality.LOW
+        ImageQuality.MEDIUM, ImageQuality.HIGH -> PicaImageQuality.NORMAL
+        ImageQuality.ORIGINAL -> PicaImageQuality.ORIGINAL
     }
 
     override suspend fun favorites(page: Int): Result<Paged<Comic>> = src {
