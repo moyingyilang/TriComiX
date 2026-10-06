@@ -74,3 +74,13 @@ class PicaHeadersTest {
         assertTrue(a["signature"] != b["signature"])
     }
 }
+
+/** 追加：`app-nonce` 必须被发送（此前漏发导致登录 401）。 */
+class PicaAppNonceTest {
+
+    @Test
+    fun `请求头包含 app-nonce`() {
+        val h = PicaHeaders.build("auth/sign-in", "POST", 1700000000L, "n", "uuid")
+        assertEquals(PicaHeaders.APP_NONCE, h["app-nonce"])
+    }
+}

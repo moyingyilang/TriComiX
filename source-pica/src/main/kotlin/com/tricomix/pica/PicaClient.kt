@@ -45,12 +45,8 @@ class PicaClient(
 
     /** `/auth/sign-in`：成功后保存 token。 */
     suspend fun signIn(email: String, password: String): JsonElement {
-        val body = JsonObject(
-            mapOf(
-                "email" to JsonPrimitive(email),
-                "password" to JsonPrimitive(password),
-            )
-        ).toString().toRequestBody("application/json".toMediaType())
+        val body = PicaHeaders.signInBody(email, password)
+            .toRequestBody(PicaHeaders.JSON_CONTENT_TYPE.toMediaType())
         val root = execute(PicaApi.signIn(), "POST", body)
         val token = extractToken(root)
             ?: throw IllegalStateException("登录响应里没有 token（响应形状可能已变），不当作登录成功")
@@ -77,7 +73,10 @@ class PicaClient(
         body: okhttp3.RequestBody?,
     ): JsonElement = withContext(Dispatchers.IO) {
         val local = Instant.now().epochSecond
-        val nonce = UUID.randomUUID().toString().replace("-", "")
+        // 实测关键（来自完整客户端的实现）：nonce 是**固定常量**，不是每请求随机；
+        // 随机会让服务端一律返回 401/1005。
+        val nonce = "4ce7a7aa759b40f794d189a88b84aba8"
+        // 签名原文 = path（**含查询串**）+ time + nonce + method + apiKey，整体小写
         val headers = PicaHeaders.build(
             path = path,
             method = method,
@@ -103,7 +102,7 @@ class PicaClient(
             val code = PicaJson.code(root)
             if (code != 200) {
                 val message = root.jsonObject["message"]?.toString() ?: "未知错误"
-                throw IllegalStateException("服务端返回 code=$code message=$message")
+                throw IllegalStateException("服务端返回 code=$code message=$message 原始响应=${text.take(300)}")
             }
             root
         }
