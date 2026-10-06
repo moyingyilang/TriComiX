@@ -42,13 +42,14 @@ class EhSourceMappingTest {
      * 未实现的能力必须**明确报 Unsupported**，而不是静默返回空数据。
      *
      * 注意这是个"移动靶"：一旦某个方法被实现，这里就要换一个仍未实现的方法
-     * （已被它绊了四次：detail、pages、login 先后被实现）。目前仍未实现的是 favorites / history。
-     * 这里选 favorites：它在第一行就返回，不触发任何网络请求。
+     * （已被它绊了五次：detail、pages、login、favorites 相继被实现）。目前仍未实现的是 history。
+     * 这里选 history：它在第一行就返回，不触发任何网络请求。
+     * 若它也被实现，请**删掉这个测试**而不是再换一个目标 —— 这类"状态断言"维护成本已经超过它的价值。
      */
     @Test
     fun `未实现的能力返回 Unsupported 而不是空数据`() {
         val source = EhSource(host = EhHost.E_HENTAI)
-        val result = runBlocking { source.favorites(1) }
+        val result = runBlocking { source.history(1) }
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is SourceError.Unsupported, "实际：${result.exceptionOrNull()}")
     }

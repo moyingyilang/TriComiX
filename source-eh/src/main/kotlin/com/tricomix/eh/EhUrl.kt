@@ -19,6 +19,10 @@ class EhUrl(private val host: EhHost = EhHost.E_HENTAI) {
         if (page > 0) append("&page=").append(page)
     }
 
+    /** 收藏页（需登录；未登录时站点会重定向到登录页）。 */
+    fun favorites(page: Int = 0): String =
+        "$hostName/favorites.php" + if (page > 0) "?page=$page" else ""
+
     /** 标签页。 */
     fun tag(tag: String, page: Int = 0): String = buildString {
         append(hostName).append("/tag/").append(urlEncode(tag))

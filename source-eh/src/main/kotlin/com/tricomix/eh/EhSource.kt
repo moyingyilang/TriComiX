@@ -30,7 +30,7 @@ class EhSource(
 
     override val id: String = "eh"
     override val displayName: String = "E-Hentai"
-    override val capabilities: Set<Capability> = setOf(Capability.LOGIN, Capability.SEARCH, Capability.HOME)
+    override val capabilities: Set<Capability> = setOf(Capability.LOGIN, Capability.SEARCH, Capability.HOME, Capability.FAVORITES)
 
     private val url = EhUrl(host)
 
@@ -124,9 +124,14 @@ class EhSource(
         ImageRequest(url = chosen)
     }
 
-    override suspend fun favorites(page: Int): Result<Paged<Comic>> =
-        Result.failure(SourceError.Unsupported("EH 收藏尚未接入"))
-
+    override suspend fun favorites(page: Int): Result<Paged<Comic>> = src {
+        val html = client.get(url.favorites(page))
+        if (!EhFavorites.isListView(html)) {
+            throw SourceError.Auth("收藏页不是列表视图：很可能尚未登录（请先 login），也可能是页面结构变了")
+        }
+        val items = EhFavorites.parse(html, host.baseUrl)
+        Paged(items = items.map { it.toComic() }, page = page, hasMore = items.isNotEmpty())
+    }
     override suspend fun history(page: Int): Result<Paged<Comic>> =
         Result.failure(SourceError.Unsupported("EH 历史尚未接入"))
 
