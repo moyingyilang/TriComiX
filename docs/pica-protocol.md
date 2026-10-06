@@ -66,3 +66,19 @@ PicACG 只有三档：`original` / `normal` / `low`，通过 **`image-quality` �
 | MEDIUM | normal |
 | HIGH | normal（**不**升级为原图：原图通常大得多，用户选 HIGH 不代表要原图） |
 | ORIGINAL | original |
+
+## 附：存档自身提供的签名示例（独立确认 5 段格式）
+
+存档里留有一处签名示例的原文片段：
+
+```
+/comics1478000000012 3456789abcdef0123456789abcdef get c69baf41da5abd1ffedc6d2fea56b
+```
+
+它正是 `path + time + nonce + httpMethod + apiKey`（整体小写）—— 与本文采用的 **5 段格式**一致，
+而与存档 `02-api-protocol.md` 里"8 段"的说法矛盾。这进一步支持"以原生层与示例为准"的判断。
+
+## 未确认项（不实现，也不编造）
+
+- **首页/推荐**：私有存档的 6 篇文档与两个公开参照实现里都没有该端点 → `home()` 返回 `Unsupported`；
+- **历史**：参照实现里也没有该端点 → `history()` 返回 `Unsupported`。
