@@ -51,7 +51,8 @@ AGPL-3.0（与主项目一致）。
 ## 协议笔记与测试方式
 
 - `docs/eh-protocol.md`：E-Hentai 的域名、路径、解析器地图、`hath` 机制与实现顺序；
-- `docs/pica-protocol.md`：PicACG 的端点、请求头、5 段签名、时间同步与档位映射。
+- `docs/pica-protocol.md`：PicACG 的端点、请求头、5 段签名、时间同步与档位映射；
+- `docs/unverified.md`：**已验证 / 未验证清单**（含逐能力对照与验证方式，验证时先看这份）。
 
 **命令行测试（不需要界面）**：
 
