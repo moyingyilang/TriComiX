@@ -15,32 +15,69 @@ import com.tricomix.core.source.SourceCredential
 import com.tricomix.core.source.SourceError
 
 /**
- * E-Hentai 源 —— **尚未实现**。
+ * E-Hentai 源。
  *
- * 这里刻意只保留可编译的骨架：在动手前必须先解决两件事（都不是代码问题）：
- * 1. 该站是网页站（需要 cookie 登录、DOM 解析、图片带会过期的 hath 键）；
- * 2. 它对自动化访问有明确限制，长期稳定性与封禁风险需要先接受。
+ * 现状（**如实**）：
+ * - 已实现：`home` / `search`（列表页解析），走 [EhClient] + [GalleryListParser]；
+ * - 未实现：`login`（表单登录，见 [SignInParser] 计划）、`detail` / `chapters` / `pages` /
+ *   `imageRequest`（详情页与图片列表解析）、`favorites` / `history`；
+ * - 未实现的一律返回 [SourceError.Unsupported]，**不静默返回空数据**。
  *
- * 因此本类所有方法一律返回 [SourceError.Unsupported]，不会静默返回空数据 —— 让调用方明确知道"没实现"，
- * 而不是把"没实现"伪装成"没有结果"。
+ * **未验证**：从未对真实站点发过请求。站点对自动化访问有限制，真实页面结构必须由使用者
+ * 在自己的网络环境下验证；选择器一旦与真实页面不符，本源的解析会返回空列表。
  */
-class EhSource : ComicSource {
+class EhSource(
+    private val client: EhClient = EhClient(),
+    private val host: EhHost = EhHost.E_HENTAI,
+) : ComicSource {
 
     override val id: String = "eh"
     override val displayName: String = "E-Hentai"
-    override val capabilities: Set<Capability> = emptySet()
+    override val capabilities: Set<Capability> = setOf(Capability.SEARCH, Capability.HOME)
 
-    private fun notImplemented(): Result<Nothing> =
-        Result.failure(SourceError.Unsupported("EH 源尚未实现（见 README 与 docs/design.md 的前置条件）"))
+    private val url = EhUrl(host)
 
-    override suspend fun login(credential: SourceCredential): Result<Session> = notImplemented()
-    override suspend fun logout() = Unit
-    override suspend fun home(): Result<List<Section>> = notImplemented()
-    override suspend fun search(query: String, page: Int): Result<Paged<Comic>> = notImplemented()
-    override suspend fun detail(comicId: String): Result<ComicDetail> = notImplemented()
-    override suspend fun chapters(comicId: String): Result<List<Chapter>> = notImplemented()
-    override suspend fun pages(chapterId: String): Result<List<PageRef>> = notImplemented()
-    override suspend fun imageRequest(page: PageRef, quality: ImageQuality): Result<ImageRequest> = notImplemented()
-    override suspend fun favorites(page: Int): Result<Paged<Comic>> = notImplemented()
-    override suspend fun history(page: Int): Result<Paged<Comic>> = notImplemented()
+    override suspend fun login(credential: SourceCredential): Result<Session> =
+        Result.failure(SourceError.Unsupported("EH 登录尚未接入（表单登录与 cookie 已在 EhClient/EhCookieJar 备好）"))
+
+    override suspend fun logout() {
+        client.cookieJar.clear()
+    }
+
+    override suspend fun home(): Result<List<Section>> = src {
+        val html = client.get(url.home())
+        val items = GalleryListParser.parse(html, host.baseUrl)
+        listOf(Section(title = "首页", items = items.map { it.toComic() }))
+    }
+
+    override suspend fun search(query: String, page: Int): Result<Paged<Comic>> = src {
+        val html = client.get(url.search(query, page))
+        val items = GalleryListParser.parse(html, host.baseUrl)
+        Paged(items = items.map { it.toComic() }, page = page, hasMore = items.isNotEmpty())
+    }
+
+    override suspend fun detail(comicId: String): Result<ComicDetail> =
+        Result.failure(SourceError.Unsupported("EH 详情页解析尚未接入"))
+
+    override suspend fun chapters(comicId: String): Result<List<Chapter>> =
+        Result.failure(SourceError.Unsupported("EH 的\"章节\"就是作品内的图片分页，见 pages()"))
+
+    override suspend fun pages(chapterId: String): Result<List<PageRef>> =
+        Result.failure(SourceError.Unsupported("EH 图片列表解析尚未接入（含 hath）"))
+
+    override suspend fun imageRequest(page: PageRef, quality: ImageQuality): Result<ImageRequest> =
+        Result.failure(SourceError.Unsupported("EH 取图尚未接入（含 hath）"))
+
+    override suspend fun favorites(page: Int): Result<Paged<Comic>> =
+        Result.failure(SourceError.Unsupported("EH 收藏尚未接入"))
+
+    override suspend fun history(page: Int): Result<Paged<Comic>> =
+        Result.failure(SourceError.Unsupported("EH 历史尚未接入"))
+
+
+    private suspend inline fun <T> src(crossinline block: suspend () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (e: Throwable) {
+        Result.failure(if (e is SourceError) e else SourceError.Unknown(e.message ?: e::class.simpleName ?: "未知错误"))
+    }
 }
