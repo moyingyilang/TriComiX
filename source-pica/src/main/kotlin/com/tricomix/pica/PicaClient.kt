@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit
 class PicaClient(
     private val http: OkHttpClient = defaultHttp(),
     private val timeSync: PicaTimeSync = PicaTimeSync(),
-    private val appUuid: String = UUID.randomUUID().toString(),
+    private val appUuid: String = PicaHeaders.APP_UUID,
     private val signingKey: ByteArray = PicaCredentials.signingKeyBytes,
 ) {
 

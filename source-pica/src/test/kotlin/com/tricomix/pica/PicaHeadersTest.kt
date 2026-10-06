@@ -84,3 +84,30 @@ class PicaAppNonceTest {
         assertEquals(PicaHeaders.APP_NONCE, h["app-nonce"])
     }
 }
+
+/** 追加：UA、Content-Type、固定 uuid、build-version 必须与完整客户端一致。 */
+class PicaHeaderParityTest {
+
+    private fun h() = PicaHeaders.build("auth/sign-in", "POST", 1700000000L, PicaHeaders.APP_NONCE)
+
+    @Test
+    fun `必须发送 User-Agent`() {
+        assertEquals("okhttp/3.8.1", h()["User-Agent"])
+    }
+
+    @Test
+    fun `所有请求都带 Content-Type`() {
+        assertEquals(PicaHeaders.JSON_CONTENT_TYPE, h()["Content-Type"])
+    }
+
+    @Test
+    fun `app-uuid 是固定值而不是每次随机`() {
+        assertEquals("defaultUuid", h()["app-uuid"])
+        assertEquals(h()["app-uuid"], h()["app-uuid"])
+    }
+
+    @Test
+    fun `app-build-version 对齐完整客户端`() {
+        assertEquals("45", h()["app-build-version"])
+    }
+}
