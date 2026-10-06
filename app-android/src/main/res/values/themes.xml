@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 用系统 Material 主题打底，Compose 内部再用 Material3 主题，避免额外依赖 -->
+    <style name="Theme.TriComiX" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
