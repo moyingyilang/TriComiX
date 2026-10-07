@@ -75,6 +75,21 @@ fun DetailRoute(
     Column(Modifier.fillMaxSize()) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onBack) { Text("返回") }
+            if (source.capabilities.contains(Capability.FAVORITE_WRITE)) {
+                Button(
+                    enabled = !busy,
+                    onClick = {
+                        busy = true
+                        scope.launch {
+                            source.toggleFavorite(comic.id).fold(
+                                onSuccess = { onStatus("已更新收藏") },
+                                onFailure = { onStatus("收藏失败：${it.message}") },
+                            )
+                            busy = false
+                        }
+                    },
+                ) { Text("收藏/取消") }
+            }
             if (chapters.isNotEmpty()) {
                 Button(enabled = !busy, onClick = { open(chapters.first()) }) { Text("从头开始") }
                 chapters.firstOrNull { it.id == lastChapterId }?.let { last ->
