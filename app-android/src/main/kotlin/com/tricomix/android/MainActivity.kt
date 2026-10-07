@@ -44,6 +44,7 @@ import com.tricomix.core.model.Chapter
 import com.tricomix.core.model.Comic
 import com.tricomix.core.model.ImageQuality
 import com.tricomix.core.model.PageRef
+import com.tricomix.core.source.Capability
 import com.tricomix.core.source.ComicSource
 import com.tricomix.core.source.SourceCredential
 import com.tricomix.eh.EhClient
@@ -192,7 +193,7 @@ private fun App() {
                     )
                     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
-                            enabled = !busy && query.isNotBlank(),
+                            enabled = !busy && query.isNotBlank() && source().capabilities.contains(Capability.SEARCH),
                             onClick = {
                                 busy = true; status = "搜索中…"
                                 scope.launch {
@@ -205,7 +206,7 @@ private fun App() {
                             },
                         ) { Text("搜索") }
                         Button(
-                            enabled = !busy,
+                            enabled = !busy && source().capabilities.contains(Capability.HOME),
                             onClick = {
                                 busy = true; status = "取首页…"
                                 scope.launch {
