@@ -319,7 +319,7 @@ private fun App() {
                             bitmap = null; imageError = null
                             target.imageRequest(page, ImageQuality.ORIGINAL).fold(
                                 onSuccess = { req ->
-                                    val bmp = fetchBitmap(req.url)
+                                    val bmp = fetchCachedBitmap("${s.comic.id}#${req.url}", req.url); prefetchPages(target, s.pages, index, scope)
                                     if (bmp == null) imageError = "图片下载或解码失败" else bitmap = bmp
                                 },
                                 onFailure = { imageError = "取图失败：${it.message}" },
@@ -383,4 +383,46 @@ private fun capabilityHint(caps: Set<Capability>): String {
     )
     val missing = labels.filterNot { caps.contains(it.first) }.map { it.second }
     return if (missing.isEmpty()) "" else "该源不支持：" + missing.joinToString("、")
+}
+
+/**
+ * 阅读页的按页图片缓存。
+ *
+ * 背景：`LiteFeatures.prefetchBefore/After` 是主项目用来权衡"内存换流量"的参数，
+ * 之前我只是把它显示在界面上（等于没用）。这里让它真正生效：
+ * 当前页解码完成后，按该窗口预取后续页，翻页时直接命中缓存。
+ *
+ * 取舍：缓存以 "作品 id#图片地址" 为键（地址里已含 `hath` 等参数，足以唯一标识一页）；
+ * 不做容量上限 —— 测试包优先"翻页即出图"，内存上限留待后续按需处理。
+ */
+private val pageCache = mutableMapOf<String, ImageBitmap>()
+
+private suspend fun fetchCachedBitmap(key: String, url: String): ImageBitmap? {
+    pageCache[key]?.let { return it }
+    val bmp = fetchBitmap(url)
+    if (bmp != null) pageCache[key] = bmp
+    return bmp
+}
+
+/** 按 LiteFeatures 的窗口预取后续页（失败静默：预取是尽力而为，不该打断阅读）。 */
+private fun prefetchPages(
+    source: ComicSource,
+    pages: List<PageRef>,
+    current: Int,
+    scope: kotlinx.coroutines.CoroutineScope,
+) {
+    val after = LiteFeatures.prefetchAfter
+    val before = LiteFeatures.prefetchBefore
+    val targets = ((current - before)..(current + after)).filter { it != current && it in pages.indices }
+    if (targets.isEmpty()) return
+    scope.launch {
+        for (i in targets) {
+            val page = pages.getOrNull(i) ?: continue
+            runCatching {
+                source.imageRequest(page, ImageQuality.ORIGINAL).getOrNull()?.let { req ->
+                    fetchCachedBitmap("${page.chapterId}#${req.url}", req.url)
+                }
+            }
+        }
+    }
 }
