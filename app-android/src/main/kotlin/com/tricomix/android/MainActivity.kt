@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.tricomix.android.ui.components.ComicCard
 import com.tricomix.core.model.Chapter
 import com.tricomix.core.model.Comic
 import com.tricomix.core.model.ImageQuality
@@ -58,16 +59,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 
 /**
- * TriComiX 的最小可用界面。
+ * TriComiX 的测试界面（懒移植进行中）。
  *
- * 数据层一律走统一接口 [ComicSource]：界面**不认识任何源的内部结构**，
- * 只调用 login / search / home / detail / chapters / pages / imageRequest。
+ * 分层要求：界面**只**通过 [ComicSource] 取数据，不认识任何源的具体类型；
+ * 源能力不足处按 [Capability] 显隐（例如 EH 没有首页、Pica 首页未实现 → 按钮置灰）。
  *
- * 三条设计约束：
- * 1. **每个源只建一次并记住** —— 否则每次调用新建实例，登录状态（令牌/cookie）会立刻丢失；
- * 2. 凭据只发往所选源；本机**只记住用户名，不存密码**（密码每次输入）。
- *    会话令牌/cookie 目前只活在本次运行内，重启需重新登录 —— 这是已知缺口，不假装已解决；
- * 3. 图片用 OkHttp + BitmapFactory 自取，不引入图片库；失败一律显示原因，不静默留白。
+ * 界面元素取自 JMNeXt：主题走 `JmTheme`，列表用 `ComicCard`；
+ * 更完整的屏幕正在从 `ported-ui/` 逐屏迁入（见 docs/ui-port-plan.md）。
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,13 +104,11 @@ private fun App() {
         }
     }
 
-    // 登录表单状态
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var loginStatus by remember { mutableStateOf("") }
     val prefs = remember { context.getSharedPreferences("tricomix_ui", Context.MODE_PRIVATE) }
 
-    // 只记住用户名（不存密码）；首次进入时预填
     LaunchedEffect(sourceName) {
         user = prefs.getString("user_$sourceName", "").orEmpty()
         pass = ""
@@ -136,7 +132,6 @@ private fun App() {
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
             when (val s = screen) {
                 is Screen.Search -> {
-                    // --- 登录 ---
                     OutlinedTextField(
                         value = user,
                         onValueChange = { user = it },
@@ -154,16 +149,15 @@ private fun App() {
                     )
                     Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
-                            enabled = !busy && user.isNotBlank() && pass.isNotBlank(),
+                            enabled = !busy && user.isNotBlank() && pass.isNotBlank()
+                                && source().capabilities.contains(Capability.LOGIN),
                             onClick = {
                                 busy = true
                                 loginStatus = "登录中…"
                                 val target = source()
                                 scope.launch {
                                     target.login(
-                                        SourceCredential(
-                                            mapOf("username" to user, "email" to user, "password" to pass)
-                                        )
+                                        SourceCredential(mapOf("username" to user, "email" to user, "password" to pass))
                                     ).fold(
                                         onSuccess = {
                                             prefs.edit().putString("user_$sourceName", user).apply()
@@ -183,7 +177,6 @@ private fun App() {
                     Text(loginStatus, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
                     Divider(Modifier.padding(vertical = 8.dp))
 
-                    // --- 搜索 ---
                     OutlinedTextField(
                         value = query,
                         onValueChange = { query = it },
@@ -193,7 +186,8 @@ private fun App() {
                     )
                     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
-                            enabled = !busy && query.isNotBlank() && source().capabilities.contains(Capability.SEARCH),
+                            enabled = !busy && query.isNotBlank()
+                                && source().capabilities.contains(Capability.SEARCH),
                             onClick = {
                                 busy = true; status = "搜索中…"
                                 scope.launch {
@@ -218,14 +212,29 @@ private fun App() {
                                 }
                             },
                         ) { Text("首页") }
+                        Button(
+                            enabled = !busy && source().capabilities.contains(Capability.FAVORITES),
+                            onClick = {
+                                busy = true; status = "取收藏…"
+                                scope.launch {
+                                    source().favorites(1).fold(
+                                        onSuccess = { results = it.items; status = "收藏 ${it.items.size} 条" },
+                                        onFailure = { status = "失败：${it.message}" },
+                                    )
+                                    busy = false
+                                }
+                            },
+                        ) { Text("收藏") }
                     }
                     if (busy) CircularProgressIndicator(Modifier.padding(top = 8.dp))
                     Text(status, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall)
                     Divider(Modifier.padding(vertical = 8.dp))
                     LazyColumn(Modifier.fillMaxSize()) {
                         items(results) { comic ->
-                            Column(
-                                Modifier.fillMaxWidth().clickable {
+                            // 用搬迁自 JMNeXt 的卡片：它只吃 core.Comic（底层可切换的关键接口面）
+                            ComicCard(
+                                comic = comic,
+                                onClick = {
                                     busy = true; status = "载入详情…"
                                     scope.launch {
                                         source().detail(comic.id).fold(
@@ -234,16 +243,8 @@ private fun App() {
                                         )
                                         busy = false
                                     }
-                                }.padding(8.dp),
-                            ) {
-                                Text(comic.title.ifBlank { "(无标题)" }, fontWeight = FontWeight.Bold)
-                                Text(
-                                    "${comic.author ?: "未知作者"} · ${comic.tags.take(3).joinToString(", ")}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                                Text(comic.coverUrl ?: "(无封面地址)", style = MaterialTheme.typography.labelSmall)
-                            }
-                            Divider()
+                                },
+                            )
                         }
                     }
                 }
@@ -316,7 +317,6 @@ private fun App() {
     }
 }
 
-/** 取一张图并解码；失败返回 null（由界面给出明确提示）。 */
 private suspend fun fetchBitmap(url: String): ImageBitmap? = withContext(Dispatchers.IO) {
     runCatching {
         imageClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
