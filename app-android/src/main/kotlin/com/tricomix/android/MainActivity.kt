@@ -96,7 +96,13 @@ private sealed interface Screen {
 @Composable
 private fun App() {
     val context = LocalContext.current
-    var sourceName by remember { mutableStateOf("EH") }
+    // 默认图源在重启后保留（本机设置，与图源无关）
+    var sourceName by remember {
+        mutableStateOf(
+            context.getSharedPreferences("tricomix_ui", Context.MODE_PRIVATE)
+                .getString("source", "EH") ?: "EH",
+        )
+    }
     var query by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("选择源并输入关键词后点搜索；Pica 需先登录") }
@@ -181,6 +187,7 @@ private fun App() {
                     Button(onClick = { navOpen = !navOpen }) { Text(if (navOpen) "关闭侧栏" else "菜单") }
                     Button(onClick = {
                         sourceName = when (sourceName) { "EH" -> "Pica"; "Pica" -> "JM"; else -> "EH" }
+                        prefs.edit().putString("source", sourceName).apply()
                         screen = Screen.Search
                         results = emptyList()
                         sections = emptyList()
@@ -197,7 +204,13 @@ private fun App() {
                     caps = source().capabilities,
                     currentRoute = if (screen is Screen.Search) (requestedTab?.name?.lowercase() ?: "search") else "reading",
                     loginLabel = loginStatus.ifBlank { "未登录（点击登录）" },
-                    onSelectSource = { name -> sourceName = name; screen = Screen.Search; requestedTab = null; navOpen = false },
+                    onSelectSource = { name ->
+                        sourceName = name
+                        prefs.edit().putString("source", name).apply()
+                        screen = Screen.Search
+                        requestedTab = null
+                        navOpen = false
+                    },
                     onNavigate = { route ->
                         when (route) {
                             "home", "search", "favorites" -> {
@@ -208,7 +221,11 @@ private fun App() {
                                 }
                                 screen = Screen.Search
                             }
-                            "settings", "about" -> status = if (route == "about") "TriComiX 0.2.0-preview · 界面搬迁自 JMNeXt（AGPL-3.0）" else "设置项尚未实现"
+                            "settings", "about" -> status = if (route == "about") {
+                                "TriComiX 0.2.0-preview · 界面搬迁自 JMNeXt（AGPL-3.0）"
+                            } else {
+                                "默认图源：$sourceName（重启后保留）；图片质量与预取窗口尚未开放设置"
+                            }
                             "history" -> status = "该源不支持历史"
                             "follow" -> status = "该源不支持追更"
                         }
