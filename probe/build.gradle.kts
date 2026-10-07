@@ -27,3 +27,13 @@ tasks.register<JavaExec>("rawDump") {
     val raw = (project.findProperty("rawArgs") as String? ?: "")
     args(raw.split(" ").filter { it.isNotBlank() })
 }
+
+/** JM 源独立探针：gradle :probe:jmProbe -PjmArgs="<关键词>"（用内存存储，不需要 Android） */
+tasks.register<JavaExec>("jmProbe") {
+    group = "verification"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.tricomix.probe.JmProbeKt")
+    jvmArgs("-Djava.net.preferIPv4Stack=true", "-Dfile.encoding=UTF-8")
+    val a = (project.findProperty("jmArgs") as String? ?: "")
+    args(a.split(" ").filter { it.isNotBlank() })
+}

@@ -112,8 +112,24 @@ class JmSource(private val repo: JmRepository) : ComicSource {
     override suspend fun history(page: Int): Result<Paged<Comic>> =
         Result.failure(SourceError.Unsupported("JM 源的历史尚未接入（见 JmSource 注释）"))
 
-    /** 统一的错误包装：源实现不向界面层抛异常。 */
+    /**
+     * 主机发现是否已完成。
+     *
+     * JM 的实现要求先做 `bootstrap()`（API 主机发现），否则任何请求都会以
+     * "API 主机尚未初始化：请先执行 JmHostDiscovery" 失败。主项目里这是由应用层做的，
+     * 迁移过来时漏了 —— 现改为**首次用到时自动完成**，调用方不必知道这件事。
+     */
+    
+    private var hostsReady: Boolean = false
+
+    private suspend fun ensureReady() {
+        if (hostsReady) return
+        if (repo.bootstrap()) hostsReady = true
+    }
+
+    /** 统一的错误包装：源实现不向界面层抛异常；并在首次使用时完成主机发现。 */
     private suspend inline fun <T> src(crossinline block: suspend () -> T): Result<T> = try {
+        ensureReady()
         Result.success(block())
     } catch (e: Throwable) {
         Result.failure(if (e is SourceError) e else SourceError.Unknown(e.message ?: e::class.simpleName ?: "未知错误"))
