@@ -29,6 +29,7 @@ import com.tricomix.android.ui.SearchHistory
 import com.tricomix.android.ui.components.BottomBarItem
 import com.tricomix.android.ui.components.ErrorBox
 import com.tricomix.android.ui.components.FloatingBottomBar
+import com.tricomix.android.ui.components.LoadMoreFooter
 import com.tricomix.android.ui.components.LoadingBox
 import com.tricomix.android.ui.components.MessageState
 import com.tricomix.core.model.Comic
@@ -178,11 +179,13 @@ fun SearchRoute(
             }
         }
 
-        if (tab == SearchTab.Search && hasMore && !busy) {
-            Button(
-                onClick = { run("更多") { search(query, page + 1) } },
-                modifier = Modifier.padding(bottom = 4.dp),
-            ) { Text("加载更多") }
+        if (tab == SearchTab.Search && (hasMore || !busy)) {
+            // 用 JMNeXt 自家的 LoadMoreFooter：它在加载中显示进度、到底时说明"已到底"
+            LoadMoreFooter(
+                loading = busy,
+                exhausted = !hasMore,
+                onLoadMore = { run("更多") { search(query, page + 1) } },
+            )
         }
 
         FloatingBottomBar(
