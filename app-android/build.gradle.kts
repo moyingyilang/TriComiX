@@ -14,10 +14,14 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        // 搬迁自 JMNeXt 的 LiteFeatures 读这个编译期常量（主项目用 edition 风味定义 full/lite）；测试包取 lite
+        buildConfigField("boolean", "LITE", "true")
     }
 
     buildFeatures {
         compose = true
+        // 搬迁自 JMNeXt 的 LiteFeatures 会读 BuildConfig（例如是否启用精简模式）
+        buildConfig = true
     }
 
     compileOptions {

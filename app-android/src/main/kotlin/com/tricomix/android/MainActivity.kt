@@ -71,7 +71,7 @@ import okhttp3.Request
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { App() } }
+        setContent { com.tricomix.android.ui.theme.JmTheme { App() } }
     }
 }
 
