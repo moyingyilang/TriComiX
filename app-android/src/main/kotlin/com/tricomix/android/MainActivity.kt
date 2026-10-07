@@ -466,6 +466,16 @@ private fun prefetchPages(
  * 没有反切片信息（如 EH / Pica 的图）时原样返回；解码或计算失败也原样返回，
  * 宁可显示一张乱图，也不让整页加载失败。
  */
+/**
+ * 应用 JM 的反切片 —— 直接调用搬迁自 JMNeXt 的 [com.tricomix.android.data.image.JmImage.unscramble]。
+ *
+ * 早先这里是手写的「解码像素 → 调算法 → 重建位图」，**漏掉了 JMNeXt 的那道预检**
+ * （`ImageUnscramble.bands(...).isEmpty()` 时原样返回）。后果是：本该原样显示的页也会被切分，
+ * 表现为「有些页正常、有些页被切成 2^n-1 条且不整理」。现在整段改用原实现，不再自己拼。
+ *
+ * 没有反切片信息（EH / Pica 的图）时原样返回；计算失败也原样返回，
+ * 宁可显示一张乱图，也不让整页加载失败。
+ */
 private fun applyUnscramble(
     bitmap: ImageBitmap,
     spec: com.tricomix.core.model.UnscrambleSpec?,
@@ -473,12 +483,8 @@ private fun applyUnscramble(
 ): ImageBitmap {
     if (spec == null || aid == null) return bitmap
     return runCatching {
-        val src = bitmap.asAndroidBitmap()
-        val w = src.width
-        val h = src.height
-        val pixels = IntArray(w * h)
-        src.getPixels(pixels, 0, w, 0, 0, w, h)
-        val out = com.tricomix.jm.data.image.ImageUnscramble.unscramble(pixels, w, h, aid, spec.seed)
-        android.graphics.Bitmap.createBitmap(out, w, h, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap()
+        com.tricomix.android.data.image.JmImage
+            .unscramble(bitmap.asAndroidBitmap(), aid, spec.seed)
+            .asImageBitmap()
     }.getOrDefault(bitmap)
 }
