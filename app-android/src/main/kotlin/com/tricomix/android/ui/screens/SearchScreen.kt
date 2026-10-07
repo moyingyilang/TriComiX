@@ -72,6 +72,8 @@ fun SearchRoute(
     var sections by remember { mutableStateOf<List<Section>>(emptyList()) }
     var results by remember { mutableStateOf<List<Comic>>(emptyList()) }
     var failed by remember { mutableStateOf(false) }
+    var page by remember { mutableStateOf(1) }
+    var hasMore by remember { mutableStateOf(false) }
     var recents by remember { mutableStateOf(history.all()) }
     val caps = source.capabilities
 
@@ -95,8 +97,10 @@ fun SearchRoute(
                                 @Suppress("UNCHECKED_CAST")
                                 val paged = payload as Paged<Comic>
                                 sections = emptyList()
-                                results = paged.items
-                                status = "$what ${paged.items.size} 条"
+                                results = if (paged.page <= 1) paged.items else results + paged.items
+                                page = paged.page
+                                hasMore = paged.hasMore
+                                status = "$what ${results.size} 条（第 ${paged.page} 页）"
                             }
                             else -> status = "$what：无法识别的返回类型"
                         }
@@ -172,6 +176,13 @@ fun SearchRoute(
                     MessageState(title = "还没有内容", description = "换个关键词试试")
                 else -> ComicResults(sections = sections, results = results, onOpen = onOpen)
             }
+        }
+
+        if (tab == SearchTab.Search && hasMore && !busy) {
+            Button(
+                onClick = { run("更多") { search(query, page + 1) } },
+                modifier = Modifier.padding(bottom = 4.dp),
+            ) { Text("加载更多") }
         }
 
         FloatingBottomBar(
