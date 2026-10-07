@@ -449,7 +449,7 @@ private fun prefetchPages(
             val page = pages.getOrNull(i) ?: continue
             runCatching {
                 source.imageRequest(page, ImageQuality.HIGH).getOrNull()?.let { req ->
-                    fetchCachedBitmap("${page.chapterId}#${req.url}", req.url)
+                    fetchCachedBitmap("${page.chapterId}#${req.url}", req.url, req.unscramble, page.extra["aid"]?.toIntOrNull())
                 }
             }
         }
