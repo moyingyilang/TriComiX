@@ -80,3 +80,37 @@
 **结论**：HomeScreen 的**布局可复用**，要换的是"数据管道 + 状态形状 + 屏蔽逻辑"。
 Home 之后，Search / Detail / Reader 是同一套路子（换数据管道、留布局），
 其中 Reader 额外要处理 EH 的 `hath` 与 JM 的反切片标记。
+
+## 七、SearchScreen 的改写清单（读 881 行原文后得到）
+
+结构与要素：`SearchViewModel` + `SearchUiState`（结果 / 历史 / 推荐 / 热词 / 筛选），
+界面件有 `SearchScreen`、`TagBlockedNotice`、`SuggestionPanel`、`WordChips`、`SearchFilterRows`、`FilterRow`、`DateFilterRows`；
+分页按 `pageSize = 80`；搜索历史存在 `AppPrefs`。
+
+| 原文里的东西 | 处理 |
+| --- | --- |
+| `SearchViewModel` + `repo.bootstrap()/search(...)` | 换成只吃 `ComicSource` 的状态持有者：`search(query, page)` → `Paged<Comic>`（`bootstrap` 已由 `JmSource` 内部自动完成） |
+| `repo.hotTags()`、`repo.randomRecommend()` | **统一接口里没有** → 要么不显示这两块，要么扩展 `core` 的接口（见下方"接口缺口"） |
+| `prefs.searchHistory`（JM 的 `AppPrefs`） | 用本机存储（`SharedPreferences`）自己实现搜索历史；不依赖 JM 的 prefs 实现 |
+| `filters`（排序 / 日期区间） | **接口缺口**：`ComicSource.search(query, page)` 不接受排序与日期 → 先隐藏这些筛选行；要保留就得扩展接口 |
+| `TagBlockedNotice` / `LocalTagBlocker` | JM 专有屏蔽逻辑 → 去掉 |
+| `ListItem` | → `core.Comic` |
+| `ComicCard` / `ComicRow` | `ComicCard` 已搬并已改为吃 `core.Comic`；`ComicRow` 未搬 → 先统一用 `ComicCard` |
+| `jmAnimateItem` / `jmComicSharedKey` / `LocalBottomBarInset` | 过渡动画与底栏内边距 → 已有 `jmSharedElement` 空实现；`LocalBottomBarInset` 需补一个默认值桩 |
+| 分页（80/页） | 统一接口按页取 → 可做"加载更多" |
+
+### 这一屏暴露的接口缺口（值得单独记）
+
+统一接口目前是"最小可用"形态，搬 JMNeXt 的完整搜索界面时不够用：
+
+1. **搜索筛选**：排序（最新/热门/评分…）、日期区间、分类 —— `search()` 没有对应参数；
+2. **热词与随机推荐**：`hotTags()` / `randomRecommend()` 在接口里没有位置；
+3. **搜索历史**：属于本机状态，不该由源承担（但界面需要它，所以要有一个上层存储）。
+
+处理建议（按代价从小到大）：
+
+- **先用能力与显隐解决**：没有的能力就不显示对应 UI（符合目标里"按能力显隐"的要求）；
+- **再考虑扩展**：给 `ComicSource` 增加一个可选的 `SearchOptions`（排序/日期/分类）与
+  `Capability.SEARCH_FILTERS`，各源按自身支持情况实现或忽略。
+
+在扩展之前**不假装支持**：界面里不会出现"点了没反应"的筛选器。
