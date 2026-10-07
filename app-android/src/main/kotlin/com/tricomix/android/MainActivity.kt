@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.tricomix.android.ui.components.ComicCard
+import com.tricomix.android.ui.screens.DetailRoute
 import com.tricomix.android.ui.SearchHistory
 import com.tricomix.core.model.Chapter
 import com.tricomix.core.model.Comic
@@ -283,42 +284,14 @@ private fun App() {
                     }
                 }
 
-                is Screen.Detail -> {
-                    Button(onClick = { screen = Screen.Search }) { Text("返回") }
-                    // 详情页封面（JMNeXt 的详情页有封面；用 Coil 加载，与本项目其它图一致）
-                    s.comic.coverUrl?.takeIf { it.isNotBlank() }?.let { url ->
-                        coil3.compose.AsyncImage(
-                            model = url,
-                            contentDescription = s.comic.title,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        )
-                    }
-                    Text(s.comic.title, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
-                    Text(s.comic.tags.joinToString(", "), style = MaterialTheme.typography.bodySmall)
-                    // 详情页也提示能力缺口（例如没有收藏写能力时不显示收藏按钮，但要说清为什么）
-                    capabilityHint(source().capabilities).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error) }
-                    if (s.chapters.isEmpty()) Text("这个源没有给出章节", modifier = Modifier.padding(top = 8.dp))
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        items(s.chapters, key = { it.id }) { chapter ->
-                            Column(
-                                Modifier.fillMaxWidth().clickable {
-                                    busy = true; status = "载入页列表…"
-                                    val target = source()
-                                    scope.launch {
-                                        target.pages(chapter.id).fold(
-                                            onSuccess = { p -> screen = Screen.Reader(s.comic, chapter, p); status = "共 ${p.size} 页" },
-                                            onFailure = { status = "页列表失败：${it.message}" },
-                                        )
-                                        busy = false
-                                    }
-                                }.padding(12.dp),
-                            ) { Text(chapter.title.ifBlank { "第 ${chapter.order + 1} 话" }) }
-                            Divider()
-                        }
-                    }
-                }
-
+                is Screen.Detail -> DetailRoute(
+                    comic = s.comic,
+                    chapters = s.chapters,
+                    source = source(),
+                    onBack = { screen = Screen.Search },
+                    onOpenReader = { c, ch, p -> screen = Screen.Reader(c, ch, p) },
+                    onStatus = { status = it },
+                )
                 is Screen.Reader -> {
                     var index by remember(s) { mutableStateOf(0) }
                     var bitmap by remember(s, index) { mutableStateOf<ImageBitmap?>(null) }
