@@ -60,4 +60,7 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    // Android 模块的单元测试走 JUnit4 运行器（kotlin("test") 在此不会解析到实现）
+    testImplementation("junit:junit:4.13.2")
+    testImplementation(kotlin("test-junit"))
 }
