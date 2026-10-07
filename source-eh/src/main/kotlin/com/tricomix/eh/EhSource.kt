@@ -92,7 +92,8 @@ class EhSource(
         // 说明该接口的页段语义与我的理解仍有偏差 —— 因此**失败时回退到首批**，
         // 让阅读器至少可用，并把限制如实写在这里（不假装支持全部页）。
         val keys = runCatching {
-            EhPageKeys.complete(client, host, gid, detail.token ?: token, count, tokens)
+            // 诊断：不设回退，直接看详情页 token 是否解析成功（此前静默回退到列表 token，掩盖了原因）
+            EhPageKeys.complete(client, host, gid, detail.token ?: throw SourceError.Parse("详情页未解析出 token"), count, tokens)
         }.getOrElse { tokens }
         (0 until count).map { i ->
             PageRef(
