@@ -126,4 +126,27 @@ gradle :probe:rawDump -PrawArgs="<comicId>"
 | Pica 首页 / 历史 | **不实现**（端点在任何可得资料中都不存在） |
 | EH 登录 / 收藏 | 已实现，**未在真实环境登过/取过** |
 | 会话跨重启 | **不支持**（令牌与 cookie 只在运行内存里） |
-| 界面搬迁 | 主题与 8 个组件已进 APK；Search/Detail/Reader 的完整布局仍在逐屏迁入 |
+| 界面搬迁 | **三屏已从脚手架迁出并切换生效**（`ui/screens/`：Detail/Search/LoginForm/ComicResults/Reader），脚手架 500→265 行并清掉死代码；主题与 8 个组件（GlassTopBar/AmbientBackdrop/ComicCard/FloatingBottomBar/LoadingBox/ErrorBox/MessageState 等）、首页横向分区排布已接入。**未搬**：JmNavHost 主体、HomeScreen 完整布局、阅读器滑动与缩放、下拉刷新/加载更多（方案见 ui-port-plan.md 第十节） |
+
+## 七、真机验证补充（2026-10-07）
+
+| 项 | 结论 | 依据 |
+| --- | --- | --- |
+| **哔咔全链路** | 通过 | 使用者实测："哔咔全正常" |
+| **JM 全链路** | 通过 | 使用者实测："jm那边可以了"（此前修掉了三处：图源需主机发现、单篇作品用作品 id 当章节、反切片参数与缓存键） |
+| **EH 图片** | 已修，待复验 | 根因是取图未带 Referer/UA，且默认取的是需要登录的 fullimg 原图；现已改为带请求头 + 默认取页面图（HIGH） |
+| EH 速率限制 | 已缓解，待复验 | 翻页 700ms、预取 500ms 节流 |
+| 阅读器预取 | 已实现 | 按 LiteFeatures 窗口，页间节流 500ms |
+| 预览版 | 已安装 | `0.2.0-preview`，tag `preview-0.2.0` 可回退 |
+
+### 仍然未验证
+
+| 项 | 说明 |
+| --- | --- |
+| 阅读器滑动翻页 / 双指缩放 | **未实现**（JMNeXt 有） |
+| 下拉刷新 / 上拉加载更多 | **未实现**（`LoadMoreFooter` 已搬入但未接线） |
+| Pica 首页 / 历史 | **不实现**（端点不存在） |
+| EH 登录 / 收藏读 | 已实现，未在真实环境用过 |
+| EH 收藏写 | 未接（接口已扩 `FAVORITE_WRITE`，JM 源已实现） |
+| 会话跨重启 | **不支持**（令牌与 cookie 只在内存） |
+| JmNavHost 主体 / HomeScreen 完整布局 | 未搬（方案见 `ui-port-plan.md` 第十节） |
