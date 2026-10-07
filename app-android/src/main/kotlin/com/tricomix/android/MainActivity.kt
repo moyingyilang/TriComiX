@@ -43,6 +43,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.tricomix.android.ui.components.ComicCard
 import com.tricomix.android.ui.screens.DetailRoute
+import com.tricomix.android.ui.screens.LoginForm
+import com.tricomix.android.ui.screens.SearchRoute
 import com.tricomix.android.ui.SearchHistory
 import com.tricomix.core.model.Chapter
 import com.tricomix.core.model.Comic
@@ -181,27 +183,22 @@ private fun App() {
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
             when (val s = screen) {
-                is Screen.Search -> {
-                    OutlinedTextField(
-                        value = user,
-                        onValueChange = { user = it },
-                        label = { Text(if (sourceName == "Pica") "邮箱" else "用户名") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = pass,
-                        onValueChange = { pass = it },
-                        label = { Text("密码（不会保存）") },
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                    )
-                    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            enabled = !busy && user.isNotBlank() && pass.isNotBlank()
-                                && source().capabilities.contains(Capability.LOGIN),
-                            onClick = {
+                is Screen.Search -> SearchRoute(
+                    source = source(),
+                    sourceName = sourceName,
+                    history = history,
+                    login = {
+                        LoginForm(
+                            accountLabel = if (sourceName == "Pica") "邮箱" else "用户名",
+                            user = user,
+                            password = pass,
+                            busy = busy,
+                            canLogin = user.isNotBlank() && pass.isNotBlank() &&
+                                source().capabilities.contains(Capability.LOGIN),
+                            status = loginStatus,
+                            onUserChange = { user = it },
+                            onPasswordChange = { pass = it },
+                            onLogin = {
                                 busy = true
                                 loginStatus = "登录中…"
                                 val target = source()
@@ -219,73 +216,11 @@ private fun App() {
                                     busy = false
                                 }
                             },
-                        ) { Text("登录") }
-                        Button(onClick = {
-                            scope.launch { source().logout(); loginStatus = "已登出" }
-                        }) { Text("登出") }
-                    }
-                    Text(loginStatus, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-                    Divider(Modifier.padding(vertical = 8.dp))
-
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        label = { Text("关键词") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            enabled = !busy && query.isNotBlank()
-                                && source().capabilities.contains(Capability.SEARCH),
-                            onClick = { history.add(query); load("搜索") { search(query, 1) } },
-                        ) { Text("搜索") }
-                        Button(
-                            enabled = !busy && source().capabilities.contains(Capability.HOME),
-                            onClick = { load("首页") { home() } },
-                        ) { Text("首页") }
-                        Button(
-                            enabled = !busy && source().capabilities.contains(Capability.FAVORITES),
-                            onClick = { load("收藏") { favorites(1) } },
-                        ) { Text("收藏") }
-                    }
-                    if (busy) CircularProgressIndicator(Modifier.padding(top = 8.dp))
-                    Text(status, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall)
-                    history.all().take(5).takeIf { it.isNotEmpty() }?.let { recent ->
-                        Text(
-                            "最近搜索（点一下填入最近的一条）：" + recent.joinToString(" · "),
-                            modifier = Modifier.clickable { query = recent.first() },
-                            style = MaterialTheme.typography.labelSmall,
+                            onLogout = { scope.launch { source().logout(); loginStatus = "已登出" } },
                         )
-                    }
-                    capabilityHint(source().capabilities).takeIf { it.isNotEmpty() }?.let {
-                        Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
-                    }
-                    Divider(Modifier.padding(vertical = 8.dp))
-
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        if (sections.isNotEmpty()) {
-                            // 首页：按分区展示（分区标题 + 该分区的卡片）
-                            sections.forEach { sec ->
-                                item(key = "sec-${sec.title}") {
-                                    Text(
-                                        sec.title.ifBlank { "未命名分区" },
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
-                                    )
-                                }
-                                items(sec.items, key = { "${sec.title}-${it.id}" }) { comic ->
-                                    ComicCard(comic = comic, onClick = { openDetail(comic, source(), scope) { d -> screen = d } })
-                                }
-                            }
-                        } else {
-                            items(results, key = { it.id }) { comic ->
-                                ComicCard(comic = comic, onClick = { openDetail(comic, source(), scope) { d -> screen = d } })
-                            }
-                        }
-                    }
-                }
-
+                    },
+                    onOpen = { comic -> openDetail(comic, source(), scope) { screen = it } },
+                )
                 is Screen.Detail -> DetailRoute(
                     comic = s.comic,
                     chapters = s.chapters,
