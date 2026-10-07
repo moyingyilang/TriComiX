@@ -65,10 +65,10 @@ fun SearchRoute(
     onRecentsChanged: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
-    var tab by remember { mutableStateOf(SearchTab.Search) }
+    var tab by remember { mutableStateOf(SearchTab.Home) }
     var query by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf("输入关键词后点搜索") }
+    var status by remember { mutableStateOf("正在载入首页…") }
     var sections by remember { mutableStateOf<List<Section>>(emptyList()) }
     var results by remember { mutableStateOf<List<Comic>>(emptyList()) }
     var failed by remember { mutableStateOf(false) }
@@ -122,7 +122,7 @@ fun SearchRoute(
     }
 
     Column(Modifier.fillMaxSize()) {
-        login()
+        if (tab == SearchTab.Search) login()
 
         if (tab == SearchTab.Search) {
             OutlinedTextField(
@@ -168,7 +168,7 @@ fun SearchRoute(
             when {
                 !caps.contains(tab.capability()) && tab != SearchTab.Search ->
                     MessageState(title = "该源不支持${tab.label}", description = "换一个页签，或换一个图源")
-                results.isEmpty() && sections.isEmpty() && !busy ->
+                results.isEmpty() && sections.isEmpty() && !busy && tab == SearchTab.Search ->
                     MessageState(title = "还没有内容", description = "换个关键词试试")
                 else -> ComicResults(sections = sections, results = results, onOpen = onOpen)
             }
