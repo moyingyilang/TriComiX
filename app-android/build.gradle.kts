@@ -14,8 +14,8 @@ android {
         applicationId = "com.tricomix"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0-preview"
         // 搬迁自 JMNeXt 的 LiteFeatures 读这个编译期常量（主项目用 edition 风味定义 full/lite）；测试包取 lite
         buildConfigField("boolean", "LITE", "true")
     }
