@@ -192,8 +192,3 @@ private fun parse(args: Array<String>): Map<String, String> {
     return out
 }
 
-/** `--raw <comicId>` 的入口（开发期核对用）。 */
-private fun runRaw(comicId: String): Int {
-    Raw.dump(comicId)
-    return 0
-}

@@ -55,7 +55,9 @@ class PicaSource(val client: PicaClient = PicaClient()) : ComicSource {
 
     override suspend fun detail(comicId: String): Result<ComicDetail> = src {
         val comic = PicaJson.detail(client.comic(comicId)).toComic()
-        ComicDetail(comic = comic, chapters = emptyList())
+        // 详情必须带上章节：统一模型里 ComicDetail 就是"作品 + 章节"，
+        // 之前这里返回 emptyList()，导致任何从 detail().chapters 取章节的调用方都拿不到东西。
+        ComicDetail(comic = comic, chapters = chapters(comicId).getOrThrow())
     }
 
     /**
