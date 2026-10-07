@@ -101,10 +101,15 @@ fun DetailRoute(
                 comic.author?.takeIf { it.isNotBlank() }?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium)
                 }
+                // 详情简介（core.Comic 自带，JMNeXt 的详情页也有这一段）
+                comic.description?.takeIf { it.isNotBlank() }?.let { desc ->
+                    Text(desc, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                }
                 if (comic.tags.isNotEmpty()) {
                     Text(comic.tags.joinToString("　"), style = MaterialTheme.typography.bodySmall)
                 }
                 // 该源缺什么能力就写出来（目标要求"按能力显隐，或明确提示该源不支持"）
+                Text("章节数：${chapters.size}", style = MaterialTheme.typography.labelSmall)
                 capabilityHint(source.capabilities).takeIf { it.isNotEmpty() }?.let {
                     Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                 }
