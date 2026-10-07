@@ -73,3 +73,30 @@ TRICOMIX_PASS='…' .work/probe.sh pica "关键词" 1 full 账号
 4. **超时 ≠ 协议错**：本会话多次把网络超时误判成协议问题，浪费了不少轮次。先区分
    "HTTP 000 超时" 与 "服务端返回错误码"，再下结论；
 5. **别把猜测当事实**：我早先说 EH "解析被污染、在此环境不可能通"，后来证明那只是瞬时网络状态。
+
+---
+
+## 七、进展更新（懒移植阶段）
+
+### 已完成
+
+| 项 | 说明 |
+| --- | --- |
+| 主题 | JMNeXt 的 `theme/` 五个文件（Palettes/Shapes/Theme/ThemeStyle/Tokens，约 58 KB）已迁入并生效（`JmTheme`） |
+| 组件 | JMNeXt 的 `components/` 八个文件已迁入并通过编译（ComicCard/Glass/GlassTopBar/FloatingBottomBar/StateBox/LoadMoreFooter/ItemMotion/AmbientBackdrop） |
+| 壁纸 | `LocalWallpaper` / `WallpaperStore` 原样迁入（含正确的包名映射：jm 模块 → `com.tricomix.jm.*`，app 自身 → `com.tricomix.android.*`） |
+| 关键抽象面 | `ComicCard` 已改为**只吃 `core.Comic`**（主项目里它吃 JM 的 `ListItem`） |
+| 界面能力化 | 搜索/首页/收藏/登录四个按钮按 `Capability` 显隐，并**显示"该源不支持：…"** |
+| 屏幕原文 | 看漫画四个屏幕 + NavHost（约 205 KB）已入库 `app-android/ported-ui/`，**不参与编译**，作为逐屏适配的原文 |
+
+### 已实测（真实环境）
+
+- **EH**：搜索 25 条 → 详情（作者/标签）→ 章节 1 → **页列表 16 页** → 第 1 页图片地址（本轮再次复跑确认）；
+- **Pica**：登录 → 搜索 20 条 → 详情 → 章节 → 页列表 26 页 → 图片地址（含用户手机实测登录与搜索）；
+- **JM**：探针实证 45 条搜索 + 详情与标签；**真机待验证**。
+
+### 待办（按顺序）
+
+1. 按 `ui-port-plan.md` 第六节的清单实写 HomeScreen（换数据管道、留布局），随后 Search / Detail / Reader；
+2. Reader 要一并处理 EH 的 `hath` 与 JM 的**反切片标记**（`ImageRequest.unscramble`）；
+3. 会话授权过的账号实测：用 JM 源在真机完成「搜索 → 详情 → 阅读」（目标 (d) 的判定项之一）。
