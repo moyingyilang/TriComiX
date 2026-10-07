@@ -444,6 +444,8 @@ private fun prefetchPages(
     if (targets.isEmpty()) return
     scope.launch {
         for (i in targets) {
+            // 预取也要节流：EH 对密集请求会拒绝，并发取多张反而更容易失败
+            kotlinx.coroutines.delay(500)
             val page = pages.getOrNull(i) ?: continue
             runCatching {
                 source.imageRequest(page, ImageQuality.HIGH).getOrNull()?.let { req ->

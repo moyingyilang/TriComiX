@@ -24,6 +24,9 @@ object EhPageKeys {
     /** 单部作品最多翻多少页（安全上限，避免页数异常时无限循环）。 */
     const val MAX_PAGES = 100
 
+    /** 翻页之间的间隔（毫秒）。实测密集请求会被源拒绝，所以宁可慢一点。 */
+    const val PAGE_DELAY_MS = 700L
+
     suspend fun complete(
         client: EhClient,
         host: EhHost,
@@ -40,6 +43,8 @@ object EhPageKeys {
         var produced = inlineTokens.size
         var pageIndex = 1
         while (produced < count && pageIndex <= MAX_PAGES) {
+            // 节流：EH 对短时间内的密集请求会拒绝（表现为取不到图/页）。
+            kotlinx.coroutines.delay(PAGE_DELAY_MS)
             val html = runCatching { client.get(url.galleryPage(gid, token, pageIndex)) }.getOrNull() ?: break
             val tokens = GalleryDetailParser.parse(html, galleryUrl).pageTokens
             if (tokens.isEmpty()) break

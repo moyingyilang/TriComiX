@@ -99,7 +99,9 @@ class JmSource(private val repo: JmRepository) : ComicSource {
         val aid = page.extra["aid"]?.toIntOrNull()
         val scrambleId = page.extra["scrambleId"]?.toIntOrNull()
         val unscramble = if (aid != null && scrambleId != null && repo.needsUnscramble(url, aid, scrambleId)) {
-            UnscrambleSpec(seed = aid.toString(), index = page.index)
+            // JMNeXt 传的是 image.fileNameStem（文件名去扩展名，如 "00001"）：
+                // 每一页的切片方式由 md5(aid + 该字符串) 决定，用 aid 当 seed 会还原失败。
+                UnscrambleSpec(seed = url.substringAfterLast('/').substringBeforeLast('.'), index = page.index)
         } else {
             null
         }
