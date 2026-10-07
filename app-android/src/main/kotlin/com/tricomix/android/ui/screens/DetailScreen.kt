@@ -48,6 +48,7 @@ import kotlinx.coroutines.launch
 fun DetailRoute(
     comic: Comic,
     chapters: List<Chapter>,
+    lastChapterId: String? = null,
     source: ComicSource,
     onBack: () -> Unit,
     onOpenReader: (Comic, Chapter, List<PageRef>) -> Unit,
@@ -76,6 +77,9 @@ fun DetailRoute(
             Button(onClick = onBack) { Text("返回") }
             if (chapters.isNotEmpty()) {
                 Button(enabled = !busy, onClick = { open(chapters.first()) }) { Text("从头开始") }
+                chapters.firstOrNull { it.id == lastChapterId }?.let { last ->
+                    Button(enabled = !busy, onClick = { open(last) }) { Text("继续阅读") }
+                }
             }
         }
 

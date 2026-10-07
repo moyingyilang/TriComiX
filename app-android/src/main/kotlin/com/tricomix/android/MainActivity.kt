@@ -116,6 +116,8 @@ private fun App() {
     val prefs = remember { context.getSharedPreferences("tricomix_ui", Context.MODE_PRIVATE) }
     // 搜索历史：本机状态，换源不丢（见 docs/ui-port-plan.md 的接口缺口一节）
     val history = remember { SearchHistory(com.tricomix.android.data.prefs.SharedPrefsKeyValueStore(context, "tricomix_ui")) }
+    // 阅读进度属于本机状态（与图源无关），实现搬自 JMNeXt 的 ReadProgressStore
+    val progress = remember { com.tricomix.android.data.ReadProgressStore(com.tricomix.android.data.prefs.SharedPrefsKeyValueStore(context, "tricomix_ui")) }
 
     LaunchedEffect(sourceName) {
         user = prefs.getString("user_$sourceName", "").orEmpty()
@@ -289,7 +291,8 @@ private fun App() {
                     chapters = s.chapters,
                     source = source(),
                     onBack = { screen = Screen.Search },
-                    onOpenReader = { c, ch, p -> screen = Screen.Reader(c, ch, p) },
+                    onOpenReader = { c, ch, p -> progress.record(c.id, ch.id); screen = Screen.Reader(c, ch, p) },
+                    lastChapterId = progress.lastChapterId(s.comic.id),
                     onStatus = { status = it },
                 )
                 is Screen.Reader -> {
