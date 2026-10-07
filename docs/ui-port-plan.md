@@ -1,0 +1,63 @@
+# 界面搬迁方案（沿用 JMNeXt，图源换成 ComicSource）
+
+定位（用户明确）：**这个项目是"下一个 JMNeXt"** —— UI 大体沿用 JMNeXt，只是图源不同；
+前期先沿用，后期再单独设计。
+
+## 一、JMNeXt 的界面结构（实测文件清单）
+
+| 文件 | 体积 | 作用 |
+| --- | --- | --- |
+| `ui/JmNavHost.kt` | 42 KB | 全部导航 |
+| `ui/screens/detail/DetailScreen.kt` | 56 KB | 详情 |
+| `ui/screens/reader/ReaderScreen.kt` | 48 KB | 阅读器 |
+| `ui/screens/profile/ProfileScreen.kt` | 56 KB | 我的 |
+| `ui/screens/search/SearchScreen.kt` | 38 KB | 搜索 |
+| `ui/screens/favorites/FavoritesScreen.kt` | 26 KB | 收藏 |
+| `ui/screens/category/CategoryScreen.kt` | 22 KB | 分类 |
+| `ui/screens/home/HomeScreen.kt` | 20 KB | 首页 |
+| `ui/screens/creator/CreatorScreen.kt` | 18 KB | 画师 |
+| `ui/screens/comments/CommentsScreen.kt` | 17 KB | 评论 |
+| `ui/screens/random/RandomListScreen.kt` | 15 KB | 随机 |
+| `ui/screens/auth/AuthScreen.kt` | 14 KB | 登录 |
+| `ui/screens/more/MoreListScreen.kt` | 13 KB | 更多列表 |
+| `ui/components/{Glass,FloatingBottomBar,…}.kt` | — | 通用组件 |
+| `ui/theme/{Theme,ThemeStyle}.kt` | 34 KB | 主题 |
+
+## 二、搬迁原则
+
+1. **可原样搬的**（与图源无关）：`ui/theme/`、`ui/components/`、以及各屏幕的**布局与交互**部分；
+2. **必须改写的**：屏幕里对 JM 专有数据类型的直接使用（`AlbumDetail` / `SeriesItem` / `ReadPayload` /
+   `ListItem` / `JmRepository` 的方法名）→ 一律改为只依赖 `core` 的统一模型与 `ComicSource` 接口；
+3. **不搬的**（与图源无关或 JM 特有）：评论、画师、创作者内容、签到、通知等 —— 统一接口目前不表达它们，
+   强行搬会让"图源无关"这件事破产。这些留待后期单独设计。
+
+## 三、逐屏的接口映射（这是搬迁的实际工作量所在）
+
+| 屏幕 | 现在依赖（JM 专有） | 改为 |
+| --- | --- | --- |
+| Home | `repo.promote()` / `repo.latest()` / `repo.weekIssues()` | `ComicSource.home()`（分区块）；无 home 的源显示"未支持" |
+| Search | `repo.search(query,page,…)` + `SearchResult.page.items` | `ComicSource.search(query,page)` → `Paged<Comic>` |
+| Detail | `repo.album(id)`、`AlbumDetail.series`、`repo.isTracked`、`repo.toggleFavorite` | `ComicSource.detail(id)` → `ComicDetail.comic` + `.chapters` |
+| Reader | `repo.read(chapterId).images`、`needsUnscramble` | `ComicSource.pages(chapterId)` → `PageRef`；`ComicSource.imageRequest(page,quality)` → `ImageRequest`（含 `unscramble`） |
+| Favorites | `repo.favorites(page,…)` | `ComicSource.favorites(page)`（EH/Pica 已实现） |
+| Auth | `repo.login/register/forgotPassword` | `ComicSource.login(SourceCredential)` / `logout()`；只保留登录，不含注册/找回 |
+| 其它（Category/Creator/Comments/Random/More/Profile） | JM 专有 | **本期不搬**，见原则 3 |
+
+## 四、分批实施顺序（每批独立可验证）
+
+1. **批次 1（骨架）**：在 `app-android` 里建 `ui/` 包，搬 `theme/` 与 `components/`，用 `JmNavHost` 的
+   导航结构搭出"首页/搜索/详情/阅读"四条路由，屏幕先用最小实现 —— 保证 APK 能装能跑；
+2. **批次 2（列表）**：把 Home/Search 换成 JMNeXt 的布局，数据走 `ComicSource`；
+3. **批次 3（详情）**：Detail 的布局照搬，章节列表来自 `ComicDetail.chapters`；
+4. **批次 4（阅读器）**：Reader 的翻页/手势照搬，取图走 `imageRequest`（含反切片与 `hath`）；
+5. **批次 5（登录与收藏）**：Auth 只留登录，Favorites 接 `favorites()`。
+
+每批结束都要求：编译通过 + 既有 168 个单测通过 + APK 重装 + 在设备上实际点一遍。
+
+## 五、必须向使用者说明的取舍
+
+- 统一接口**不表达**评论、画师、创作者内容、签到、通知 —— 这些屏幕**不会**搬过来，
+  除非将来扩展 `core` 的模型；
+- 各源能力不同（EH 无"首页"、Pica 无"首页/历史"），界面必须**按能力显隐**，
+  不能假设每个源都有全部能力；
+- 目前的三屏最小界面（`MainActivity.kt`）是脚手架，批次 1 起会被逐步替换。
