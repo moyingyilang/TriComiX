@@ -19,6 +19,10 @@ class EhUrl(private val host: EhHost = EhHost.E_HENTAI) {
         if (page > 0) append("&page=").append(page)
     }
 
+    /** 图片页：`/s/<imgkey>/<gid>-<页号>`（页号从 1 起）。 */
+    fun page(gid: Long, imgKey: String, pageNumber: Int): String =
+        "$hostName/s/$imgKey/$gid-$pageNumber"
+
     /** 收藏页（需登录；未登录时站点会重定向到登录页）。 */
     fun favorites(page: Int = 0): String =
         "$hostName/favorites.php" + if (page > 0) "?page=$page" else ""

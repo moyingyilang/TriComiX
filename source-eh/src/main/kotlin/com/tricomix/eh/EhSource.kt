@@ -63,7 +63,7 @@ class EhSource(
 
     override suspend fun detail(comicId: String): Result<ComicDetail> = src {
         val (gid, token) = EhDetailMapping.parseComicId(comicId)
-        val detail = GalleryDetailParser.parse(client.get(url.gallery(gid, token)), host.baseUrl)
+        val detail = GalleryDetailParser.parse(client.get(url.gallery(gid, token)), url.gallery(gid, token))
         if (!detail.looksParsed()) {
             throw SourceError.Parse("详情页解析不出任何字段（站点结构可能已变）")
         }
@@ -82,14 +82,18 @@ class EhSource(
      */
     override suspend fun pages(chapterId: String): Result<List<PageRef>> = src {
         val (gid, token) = EhDetailMapping.parseComicId(chapterId)
-        val detail = GalleryDetailParser.parse(client.get(url.gallery(gid, token)), host.baseUrl)
-        val showKey = detail.showKey
-            ?: throw SourceError.Parse("详情页没有 showkey（页面结构可能已变）")
+        val detail = GalleryDetailParser.parse(client.get(url.gallery(gid, token)), url.gallery(gid, token))
+        // 新版站点没有 showkey：图片地址改为逐页抓图片页取得，因此这里只需要逐页 imgkey。
         val tokens = detail.pageTokens
         val count = maxOf(tokens.size, detail.pages ?: 0)
         if (count == 0) throw SourceError.Parse("详情页既没有页链接也没有页数")
         // 首批之外的页用 gtoken 补（详情页只内联首批链接）
-        val keys = EhPageKeys.complete(client, host, gid, token, showKey, count, tokens)
+        // 首批之外的页需要用 gtoken 换 token。实测服务端对超出首批的页返回 "Invalid page"，
+        // 说明该接口的页段语义与我的理解仍有偏差 —— 因此**失败时回退到首批**，
+        // 让阅读器至少可用，并把限制如实写在这里（不假装支持全部页）。
+        val keys = runCatching {
+            EhPageKeys.complete(client, host, gid, detail.token ?: token, count, tokens)
+        }.getOrElse { tokens }
         (0 until count).map { i ->
             PageRef(
                 chapterId = chapterId,
@@ -97,8 +101,7 @@ class EhSource(
                 extra = buildMap {
                     put("gid", gid.toString())
                     put("token", token)
-                    put("showkey", showKey)
-                    keys.getOrNull(i)?.let { put("imgkey", it) }
+                            keys.getOrNull(i)?.let { put("imgkey", it) }
                 },
             )
         }
@@ -108,16 +111,10 @@ class EhSource(
         val gid = page.extra["gid"]?.toLongOrNull()
             ?: throw SourceError.Parse("PageRef 缺少 gid")
         val token = page.extra["token"] ?: throw SourceError.Parse("PageRef 缺少 token")
-        val showKey = page.extra["showkey"] ?: throw SourceError.Parse("PageRef 缺少 showkey")
         val imgKey = page.extra["imgkey"]
-            ?: throw SourceError.Parse("该页不在详情页的首批链接里，暂不支持（需要 gtoken 分批取）")
-        val body = EhApi.showPage(gid, page.index, imgKey, showKey)
-        val response = client.postJson(
-            url = EhApi.endpoint(host),
-            json = body,
-            referer = url.gallery(gid, token),
-        )
-        val image = GalleryPageApiParser.parse(response)
+            ?: throw SourceError.Parse("PageRef 缺少 imgkey（该页不在详情页首批链接里时需用 gtoken 补齐）")
+        // 新版流程：直接打开图片页 /s/<imgkey>/<gid>-<页号>，从页面里取图片地址
+        val image = GalleryPageParser.parse(client.get(url.page(gid, imgKey, page.index + 1)))
         // EH 的质量档位对应"原图 / 页面图"，这里优先原图（若响应给了）。
         val chosen = if (quality == ImageQuality.ORIGINAL) {
             image.originUrl ?: image.imageUrl

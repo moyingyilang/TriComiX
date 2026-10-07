@@ -34,3 +34,14 @@ class EhUrlTest {
         assertEquals("https://e-hentai.org/archiver.php?gid=1&token=tok&or=1", e.archive(1, "tok", original = true))
     }
 }
+
+/** 追加：图片页 URL。 */
+class EhImagePageUrlTest {
+    @Test
+    fun `图片页 URL 形状`() {
+        assertEquals(
+            "https://e-hentai.org/s/5ab761c00b/4236322-1",
+            EhUrl(EhHost.E_HENTAI).page(4236322L, "5ab761c00b", 1),
+        )
+    }
+}

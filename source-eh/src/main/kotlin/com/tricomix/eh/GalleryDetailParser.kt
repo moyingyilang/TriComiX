@@ -53,7 +53,7 @@ object GalleryDetailParser {
             token = gidToken?.second,
             title = text(document, "gn"),
             category = text(document, "gdc"),
-            uploader = text(document, "gj"),
+            uploader = ehUploaderOf(document),
             coverUrl = coverOf(document),
             posted = postedOf(document),
             pages = pagesOf(document),
@@ -136,3 +136,12 @@ object GalleryDetailParser {
         return re.findAll(document.html()).map { it.groupValues[1] }.distinct().toList()
     }
 }
+
+/**
+ * 上传者。真实详情页里 `#gj` 元素**是空的**，用户名在一个指向 `/uploader/<名字>` 的链接里
+ * （实测：`<a href="https://e-hentai.org/uploader/Cichol24">Cichol24</a>`）。
+ * 写成顶层私有函数是为了不搅动对象内部的既有实现。
+ */
+private fun ehUploaderOf(document: org.jsoup.nodes.Document): String? =
+    document.selectFirst("a[href*=/uploader/]")?.text()?.trim()?.takeIf { it.isNotEmpty() }
+        ?: document.getElementById("gj")?.text()?.trim()?.takeIf { it.isNotEmpty() }
