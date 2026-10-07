@@ -22,6 +22,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.tricomix.android.ui.SearchHistory
+import com.tricomix.android.ui.components.LoadingBox
+import com.tricomix.android.ui.components.ErrorBox
+import com.tricomix.android.ui.components.MessageState
 import com.tricomix.core.model.Comic
 import com.tricomix.core.model.Paged
 import com.tricomix.core.model.Section

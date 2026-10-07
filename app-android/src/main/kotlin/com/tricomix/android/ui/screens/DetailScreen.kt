@@ -26,6 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.tricomix.core.model.Chapter
+import com.tricomix.android.ui.components.LoadingBox
+import com.tricomix.android.ui.components.ErrorBox
+import com.tricomix.android.ui.components.MessageState
 import com.tricomix.core.model.Comic
 import com.tricomix.core.model.PageRef
 import com.tricomix.core.source.Capability
