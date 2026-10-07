@@ -1,6 +1,8 @@
 plugins {
     id("com.android.application")
     kotlin("plugin.compose")
+    // 搬迁自 JMNeXt 的界面代码里有 @Serializable 模型（如壁纸配置），需要序列化插件
+    kotlin("plugin.serialization")
 }
 
 android {
@@ -53,5 +55,9 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    // 搬迁自 JMNeXt 的界面组件需要：Coil 3 加载图片、扩展图标集（版本对齐主项目）
+    implementation("io.coil-kt.coil3:coil-compose:3.6.3")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3")
+    implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
