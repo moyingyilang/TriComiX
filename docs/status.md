@@ -100,3 +100,29 @@ TRICOMIX_PASS='…' .work/probe.sh pica "关键词" 1 full 账号
 1. 按 `ui-port-plan.md` 第六节的清单实写 HomeScreen（换数据管道、留布局），随后 Search / Detail / Reader；
 2. Reader 要一并处理 EH 的 `hath` 与 JM 的**反切片标记**（`ImageRequest.unscramble`）；
 3. 会话授权过的账号实测：用 JM 源在真机完成「搜索 → 详情 → 阅读」（目标 (d) 的判定项之一）。
+
+## 八、近期变更（许可证与阅读页）
+
+### 三家仓库的许可证已统一为 AGPL-3.0
+
+| 仓库 | LICENSE | 说明 |
+| --- | --- | --- |
+| `JMNeXt` | AGPL-3.0（34,523 字节） | 原有 |
+| `JMNeXt4QtDesktop` | AGPL-3.0（34,523 字节） | **本次补上**（取自主项目 LICENSE，逐字节一致），README 增加许可证说明与分发要求 |
+| `TriComiX` | AGPL-3.0（34,523 字节） | 原有 |
+
+意义：TriComiX 搬迁 JMNeXt 的界面代码、Qt 线将来复用 TriComiX 的源实现，**在许可上都没有障碍**。
+
+### 界面侧
+
+- 阅读页现在显示搬迁自 JMNeXt 的 `LiteFeatures` 预取窗口（lite 档 `1/3`、full 档 `2/8`）——
+  让搬来的调优参数**参与界面**，而不是躺在代码里当死代码；
+- 首页按**分区**展示（分区标题 + 各自卡片），搜索/收藏会清空分区状态，避免残留；
+- 结果装载统一走一个入口并按返回类型分派（`List<Section>` 或 `Paged<Comic>`）。
+
+### 待办（承接第七节）
+
+1. **阅读页预取**：目前只加载当前页；`LiteFeatures.prefetchAfter` 已取到 3，
+   但**尚未真正预取**（只显示在界面上）。要做的是加一层按页缓存 + 预取当前页之后 N 页；
+2. `SearchScreen` / `DetailScreen` 的布局要素继续从 `ported-ui/` 吸收；
+3. 真机验证：JM 源的「搜索 → 详情 → 阅读」（目标 (d) 判定项）。
