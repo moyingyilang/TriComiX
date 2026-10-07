@@ -180,3 +180,48 @@ Detail 目前**不显示**收藏按钮 —— 这是刻意的，等接口扩好�
 
 **原则不变**：接口里没有的能力，界面就不显示对应按钮（或显示"该源不支持"），
 绝不出现点了没反应的控件。
+
+## 十、主体（JmNavHost + HomeScreen）搬迁方案
+
+前面已逐块搬进：主题、8 个组件、Detail/Search/Reader 三屏、底部导航、首页横向分区排布。
+**剩下最像"主体"的两块**是 JMNeXt 的 `JmNavHost`（42 KB）与 `HomeScreen`（20 KB）。
+
+### 为什么至今没一口气搬完（如实记录）
+
+本会话尝试过 4 次"跨几十行整体替换"，其中 3 次把文件改坏、靠回滚兜底。
+结论：**大块搬迁需要一次完整、独立的会话上下文**，在长会话尾部做，失败率明显偏高。
+
+### 建议的实施顺序（下次开工照此执行）
+
+1. **先打 tag 保底**：`git tag port-before-navhost && git push --tags`（随时可整体回退）；
+2. **抽导航壳**（不改屏幕内容）：新建 `ui/AppNav.kt`，只用 Compose 原生导航（`NavHost` + `composable("route")`）
+   定义路由：`home` / `search` / `favorites` / `detail/{id}` / `reader/{comicId}/{chapterId}`；
+   `MainActivity` 只保留 `setContent { JmTheme { AppNav(...) } }`；
+   每加一条路由就编译一次 —— 这是把 42 KB 的 `JmNavHost` **拆成可验证小步**的唯一办法；
+3. **迁 HomeScreen**：按第九节同款清单（换数据管道、留布局）。它 430 行，建议分三块：
+   ① 头部与分区标题；② 分区横向行（已在 `ComicResults` 实现，可直接复用）；
+   ③ 分页与下拉刷新（`Paged.hasMore` 已具备，配 `LoadMoreFooter`）；
+4. **转场动画**：`JmNavHost` 里的过渡（共享元素、淡入淡出）最后做；注意 `jmSharedElement`
+   目前是空实现（见 `ui/screens/` 的桩），要做真动画需从 JMNeXt 一并搬入；
+5. **入口补齐**（JMNeXt 有、当前没有）：分类、画师、我的 —— 其中"我的"需要新接口能力
+   （见第八、九节的缺口清单），不要先做空壳。
+
+### 界面上已经"像 JMNeXt"的部分（可对照验收）
+
+| 元素 | 用的 JMNeXt 组件 |
+| --- | --- |
+| 配色/形状/排版 | `JmTheme`（theme 包 5 个文件） |
+| 顶栏 | `GlassTopBar` |
+| 背景 | `AmbientBackdrop`（`Modifier.ambientBase()`） |
+| 卡片 | `ComicCard`（只吃 `core.Comic`） |
+| 底部导航 | `FloatingBottomBar` |
+| 加载/错误/空态 | `LoadingBox` / `ErrorBox` / `MessageState` |
+| 首页分区排布 | 分区标题 + 横向滑动卡片行 |
+| 阅读器 | `LiteFeatures` 预取、`JmImage` + `ImageUnscramble` 反切片 |
+| 详情 | `ReadProgressStore`（继续阅读） |
+
+### 尚未搬的交互（按价值排序）
+
+1. 阅读器 **左右滑动翻页** 与 **双指缩放**；
+2. 列表 **下拉刷新 / 上拉加载更多**（`LoadMoreFooter` 已就位）；
+3. 详情页的 **收藏状态行**（接口已扩 `FAVORITE_WRITE`，JM 源已实现写；EH 待接）。
