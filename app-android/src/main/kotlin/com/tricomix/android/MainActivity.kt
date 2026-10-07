@@ -363,7 +363,11 @@ private fun openDetail(
 ) {
     scope.launch {
         source.detail(comic.id).fold(
-            onSuccess = { d -> onOk(Screen.Detail(d.comic, d.chapters)) },
+            onSuccess = { d ->
+            // 不少 JM 作品是单篇（series 为空）：用作品自身当唯一章节，否则界面显示"没有章节"而无从进入。
+            val ch = if (d.chapters.isEmpty()) listOf(Chapter(id = d.comic.id, title = d.comic.title, order = 0)) else d.chapters
+            onOk(Screen.Detail(d.comic, ch))
+        },
             onFailure = { /* 由界面状态提示；此处不静默吞掉语义 */ },
         )
     }
@@ -371,7 +375,12 @@ private fun openDetail(
 
 private suspend fun fetchBitmap(url: String): ImageBitmap? = withContext(Dispatchers.IO) {
     runCatching {
-        imageClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
+        imageClient.newCall(
+            Request.Builder().url(url)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                .header("Referer", "https://e-hentai.org/")
+                .build(),
+        ).execute().use { response ->
             val bytes = response.body?.bytes() ?: return@use null
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
         }
