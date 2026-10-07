@@ -34,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -329,9 +330,9 @@ private fun App() {
                     if (page != null) {
                         LaunchedEffect(s, index) {
                             bitmap = null; imageError = null
-                            target.imageRequest(page, ImageQuality.ORIGINAL).fold(
+                            target.imageRequest(page, ImageQuality.HIGH).fold(
                                 onSuccess = { req ->
-                                    val bmp = fetchCachedBitmap("${s.comic.id}#${req.url}", req.url); prefetchPages(target, s.pages, index, scope)
+                                    val bmp = fetchCachedBitmap("${s.comic.id}#${req.url}", req.url, req.unscramble, page.extra["aid"]?.toIntOrNull()); prefetchPages(target, s.pages, index, scope)
                                     if (bmp == null) imageError = "图片下载或解码失败" else bitmap = bmp
                                 },
                                 onFailure = { imageError = "取图失败：${it.message}" },
@@ -418,9 +419,14 @@ private fun capabilityHint(caps: Set<Capability>): String {
  */
 private val pageCache = mutableMapOf<String, ImageBitmap>()
 
-private suspend fun fetchCachedBitmap(key: String, url: String): ImageBitmap? {
+private suspend fun fetchCachedBitmap(
+    key: String,
+    url: String,
+    spec: com.tricomix.core.model.UnscrambleSpec? = null,
+    aid: Int? = null,
+): ImageBitmap? {
     pageCache[key]?.let { return it }
-    val bmp = fetchBitmap(url)
+    val bmp = fetchBitmap(url)?.let { applyUnscramble(it, spec, aid) }
     if (bmp != null) pageCache[key] = bmp
     return bmp
 }
@@ -440,10 +446,37 @@ private fun prefetchPages(
         for (i in targets) {
             val page = pages.getOrNull(i) ?: continue
             runCatching {
-                source.imageRequest(page, ImageQuality.ORIGINAL).getOrNull()?.let { req ->
+                source.imageRequest(page, ImageQuality.HIGH).getOrNull()?.let { req ->
                     fetchCachedBitmap("${page.chapterId}#${req.url}", req.url)
                 }
             }
         }
     }
+}
+
+/**
+ * 应用 JM 的反切片。
+ *
+ * JM 的图片在服务端被切成若干横条并打乱顺序，客户端要用 (aid, 页标识) 复原。
+ * 这里用的就是搬迁自 JMNeXt 的实现（`ImageUnscramble`），此前**只搬了实现却没有调用**，
+ * 所以 JM 的图在界面上是乱的 —— 这正是"不是整理好的那种给人看的图"的原因。
+ *
+ * 没有反切片信息（如 EH / Pica 的图）时原样返回；解码或计算失败也原样返回，
+ * 宁可显示一张乱图，也不让整页加载失败。
+ */
+private fun applyUnscramble(
+    bitmap: ImageBitmap,
+    spec: com.tricomix.core.model.UnscrambleSpec?,
+    aid: Int?,
+): ImageBitmap {
+    if (spec == null || aid == null) return bitmap
+    return runCatching {
+        val src = bitmap.asAndroidBitmap()
+        val w = src.width
+        val h = src.height
+        val pixels = IntArray(w * h)
+        src.getPixels(pixels, 0, w, 0, 0, w, h)
+        val out = com.tricomix.jm.data.image.ImageUnscramble.unscramble(pixels, w, h, aid, spec.seed)
+        android.graphics.Bitmap.createBitmap(out, w, h, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap()
+    }.getOrDefault(bitmap)
 }
