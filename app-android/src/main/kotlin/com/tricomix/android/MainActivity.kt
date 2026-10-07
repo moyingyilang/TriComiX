@@ -285,6 +285,15 @@ private fun App() {
 
                 is Screen.Detail -> {
                     Button(onClick = { screen = Screen.Search }) { Text("返回") }
+                    // 详情页封面（JMNeXt 的详情页有封面；用 Coil 加载，与本项目其它图一致）
+                    s.comic.coverUrl?.takeIf { it.isNotBlank() }?.let { url ->
+                        coil3.compose.AsyncImage(
+                            model = url,
+                            contentDescription = s.comic.title,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        )
+                    }
                     Text(s.comic.title, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
                     Text(s.comic.tags.joinToString(", "), style = MaterialTheme.typography.bodySmall)
                     // 详情页也提示能力缺口（例如没有收藏写能力时不显示收藏按钮，但要说清为什么）
