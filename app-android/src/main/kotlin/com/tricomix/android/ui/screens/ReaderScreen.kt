@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.tricomix.android.LiteFeatures
 import com.tricomix.android.data.image.JmImage
 import com.tricomix.android.ui.components.ErrorBox
+import com.tricomix.android.ui.components.GlassSurface
 import com.tricomix.android.ui.components.LoadingBox
 import com.tricomix.core.model.Chapter
 import com.tricomix.core.model.Comic
@@ -70,10 +71,13 @@ fun ReaderRoute(
         if (next != index) index = next
     }
 
+    // 控制条包进 JMNeXt 的玻璃容器（GlassSurface），与顶栏质感一致
+    GlassSurface(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = onBack) { Text("返回") }
         Button(enabled = index > 0, onClick = { go(-1) }) { Text("上一页") }
         Button(enabled = index < pages.size - 1, onClick = { go(1) }) { Text("下一页") }
+    }
     }
     Text(
         "${index + 1} / ${pages.size}　预取 ${LiteFeatures.prefetchBefore}/${LiteFeatures.prefetchAfter}　左右滑动可翻页",
