@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.tricomix.android.ui.components.ComicCard
+import com.tricomix.android.ui.components.jmAnimateItem
 import com.tricomix.core.model.Comic
 import com.tricomix.core.model.Section
 
@@ -60,7 +61,7 @@ fun ComicResults(
                         contentPadding = PaddingValues(horizontal = 4.dp),
                     ) {
                         items(sec.items, key = { "${sec.title}-${it.id}" }) { comic ->
-                            Column(Modifier.width(cardWidth)) {
+                            Column(Modifier.width(cardWidth).jmAnimateItem(this)) {
                                 ComicCard(comic = comic, onClick = { onOpen(comic) })
                             }
                         }
@@ -69,7 +70,7 @@ fun ComicResults(
             }
         } else {
             items(results, key = { it.id }) { comic ->
-                ComicCard(comic = comic, onClick = { onOpen(comic) })
+                ComicCard(comic = comic, onClick = { onOpen(comic) }, modifier = Modifier.jmAnimateItem(this))
             }
         }
     }
