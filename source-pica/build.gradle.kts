@@ -14,3 +14,10 @@ dependencies {
     api("com.squareup.okhttp3:okhttp:5.5.0")
     testImplementation(kotlin("test"))
 }
+
+// 测试用假凭据：仓库不含真实密钥（开源脱敏），而默认值缺失时会明确报错。
+// 这些测试只验证"请求头/签名构造"，不关心密钥真实值。
+tasks.withType<Test>().configureEach {
+    environment("TRICOMIX_PICA_APIKEY", "TEST-API-KEY-NOT-REAL")
+    environment("TRICOMIX_PICA_SIGNINGKEY", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde")
+}
