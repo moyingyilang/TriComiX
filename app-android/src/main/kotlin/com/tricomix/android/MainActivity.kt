@@ -45,6 +45,7 @@ import com.tricomix.core.model.Chapter
 import com.tricomix.core.model.Comic
 import com.tricomix.core.model.ImageQuality
 import com.tricomix.core.model.PageRef
+import com.tricomix.core.model.Section
 import com.tricomix.core.source.Capability
 import com.tricomix.core.source.ComicSource
 import com.tricomix.core.source.SourceCredential
@@ -61,11 +62,12 @@ import okhttp3.Request
 /**
  * TriComiX 的测试界面（懒移植进行中）。
  *
- * 分层要求：界面**只**通过 [ComicSource] 取数据，不认识任何源的具体类型；
- * 源能力不足处按 [Capability] 显隐（例如 EH 没有首页、Pica 首页未实现 → 按钮置灰）。
+ * 分层：界面**只**通过 [ComicSource] 取数据，不认识任何源的具体类型；
+ * 能力不足处按 [Capability] 显隐并给出"该源不支持…"的明确提示。
+ * 视觉取自 JMNeXt：主题 `JmTheme`、列表与卡片 `ComicCard`。
  *
- * 界面元素取自 JMNeXt：主题走 `JmTheme`，列表用 `ComicCard`；
- * 更完整的屏幕正在从 `ported-ui/` 逐屏迁入（见 docs/ui-port-plan.md）。
+ * 首页按**分区**展示（JMNeXt 的首页就是分区的）：分区标题 + 该分区的作品卡片。
+ * 搜索与收藏没有分区概念，因此它们会把分区状态清空，避免残留旧内容。
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -90,6 +92,7 @@ private fun App() {
     var query by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("选择源并输入关键词后点搜索；Pica 需先登录") }
+    var sections by remember { mutableStateOf<List<Section>>(emptyList()) }
     var results by remember { mutableStateOf<List<Comic>>(emptyList()) }
     var screen by remember { mutableStateOf<Screen>(Screen.Search) }
     val scope = rememberCoroutineScope()
@@ -115,6 +118,44 @@ private fun App() {
         loginStatus = ""
     }
 
+    // 统一的结果装载：搜索/收藏没有分区，首页有
+    fun load(what: String, block: suspend ComicSource.() -> Result<*>) {
+        busy = true
+        status = "$what…"
+        val target = source()
+        scope.launch {
+            try {
+                when (val r = target.block()) {
+                    is Result<*> -> r.fold(
+                        onSuccess = { payload ->
+                            when (payload) {
+                                is List<*> -> {
+                                    @Suppress("UNCHECKED_CAST")
+                                    val secs = payload as List<Section>
+                                    sections = secs
+                                    results = secs.flatMap { it.items }
+                                    status = "首页 ${results.size} 条（${secs.size} 个分区）"
+                                }
+                                is com.tricomix.core.model.Paged<*> -> {
+                                    @Suppress("UNCHECKED_CAST")
+                                    val paged = payload as com.tricomix.core.model.Paged<Comic>
+                                    sections = emptyList()
+                                    results = paged.items
+                                    status = "$what ${paged.items.size} 条"
+                                }
+                                else -> status = "$what：无法识别的返回类型"
+                            }
+                        },
+                        onFailure = { status = "${what}失败：${it.message}" },
+                    )
+                    else -> status = "$what：无法识别的返回类型"
+                }
+            } finally {
+                busy = false
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -124,6 +165,8 @@ private fun App() {
                         sourceName = when (sourceName) { "EH" -> "Pica"; "Pica" -> "JM"; else -> "EH" }
                         screen = Screen.Search
                         results = emptyList()
+                        sections = emptyList()
+                        status = "已切换到 $sourceName"
                     }) { Text("切换源") }
                 },
             )
@@ -188,42 +231,15 @@ private fun App() {
                         Button(
                             enabled = !busy && query.isNotBlank()
                                 && source().capabilities.contains(Capability.SEARCH),
-                            onClick = {
-                                busy = true; status = "搜索中…"
-                                scope.launch {
-                                    source().search(query, 1).fold(
-                                        onSuccess = { results = it.items; status = "取到 ${it.items.size} 条" },
-                                        onFailure = { status = "失败：${it.message}" },
-                                    )
-                                    busy = false
-                                }
-                            },
+                            onClick = { load("搜索") { search(query, 1) } },
                         ) { Text("搜索") }
                         Button(
                             enabled = !busy && source().capabilities.contains(Capability.HOME),
-                            onClick = {
-                                busy = true; status = "取首页…"
-                                scope.launch {
-                                    source().home().fold(
-                                        onSuccess = { results = it.flatMap { s -> s.items }; status = "首页 ${results.size} 条" },
-                                        onFailure = { status = "失败：${it.message}" },
-                                    )
-                                    busy = false
-                                }
-                            },
+                            onClick = { load("首页") { home() } },
                         ) { Text("首页") }
                         Button(
                             enabled = !busy && source().capabilities.contains(Capability.FAVORITES),
-                            onClick = {
-                                busy = true; status = "取收藏…"
-                                scope.launch {
-                                    source().favorites(1).fold(
-                                        onSuccess = { results = it.items; status = "收藏 ${it.items.size} 条" },
-                                        onFailure = { status = "失败：${it.message}" },
-                                    )
-                                    busy = false
-                                }
-                            },
+                            onClick = { load("收藏") { favorites(1) } },
                         ) { Text("收藏") }
                     }
                     if (busy) CircularProgressIndicator(Modifier.padding(top = 8.dp))
@@ -232,22 +248,26 @@ private fun App() {
                         Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                     }
                     Divider(Modifier.padding(vertical = 8.dp))
+
                     LazyColumn(Modifier.fillMaxSize()) {
-                        items(results) { comic ->
-                            // 用搬迁自 JMNeXt 的卡片：它只吃 core.Comic（底层可切换的关键接口面）
-                            ComicCard(
-                                comic = comic,
-                                onClick = {
-                                    busy = true; status = "载入详情…"
-                                    scope.launch {
-                                        source().detail(comic.id).fold(
-                                            onSuccess = { d -> screen = Screen.Detail(d.comic, d.chapters); status = "详情已载入" },
-                                            onFailure = { status = "详情失败：${it.message}" },
-                                        )
-                                        busy = false
-                                    }
-                                },
-                            )
+                        if (sections.isNotEmpty()) {
+                            // 首页：按分区展示（分区标题 + 该分区的卡片）
+                            sections.forEach { sec ->
+                                item(key = "sec-${sec.title}") {
+                                    Text(
+                                        sec.title.ifBlank { "未命名分区" },
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
+                                    )
+                                }
+                                items(sec.items, key = { "${sec.title}-${it.id}" }) { comic ->
+                                    ComicCard(comic = comic, onClick = { openDetail(comic, source(), scope) { d -> screen = d } })
+                                }
+                            }
+                        } else {
+                            items(results, key = { it.id }) { comic ->
+                                ComicCard(comic = comic, onClick = { openDetail(comic, source(), scope) { d -> screen = d } })
+                            }
                         }
                     }
                 }
@@ -256,16 +276,15 @@ private fun App() {
                     Button(onClick = { screen = Screen.Search }) { Text("返回") }
                     Text(s.comic.title, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
                     Text(s.comic.tags.joinToString(", "), style = MaterialTheme.typography.bodySmall)
-                    Text(status, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-                    Divider(Modifier.padding(vertical = 8.dp))
-                    if (s.chapters.isEmpty()) Text("这个源没有给出章节")
+                    if (s.chapters.isEmpty()) Text("这个源没有给出章节", modifier = Modifier.padding(top = 8.dp))
                     LazyColumn(Modifier.fillMaxSize()) {
-                        items(s.chapters) { chapter ->
+                        items(s.chapters, key = { it.id }) { chapter ->
                             Column(
                                 Modifier.fillMaxWidth().clickable {
                                     busy = true; status = "载入页列表…"
+                                    val target = source()
                                     scope.launch {
-                                        source().pages(chapter.id).fold(
+                                        target.pages(chapter.id).fold(
                                             onSuccess = { p -> screen = Screen.Reader(s.comic, chapter, p); status = "共 ${p.size} 页" },
                                             onFailure = { status = "页列表失败：${it.message}" },
                                         )
@@ -320,6 +339,21 @@ private fun App() {
     }
 }
 
+/** 打开详情并把结果交给调用方（失败时写状态，不静默）。 */
+private fun openDetail(
+    comic: Comic,
+    source: ComicSource,
+    scope: kotlinx.coroutines.CoroutineScope,
+    onOk: (Screen) -> Unit,
+) {
+    scope.launch {
+        source.detail(comic.id).fold(
+            onSuccess = { d -> onOk(Screen.Detail(d.comic, d.chapters)) },
+            onFailure = { /* 由界面状态提示；此处不静默吞掉语义 */ },
+        )
+    }
+}
+
 private suspend fun fetchBitmap(url: String): ImageBitmap? = withContext(Dispatchers.IO) {
     runCatching {
         imageClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
@@ -333,8 +367,7 @@ private suspend fun fetchBitmap(url: String): ImageBitmap? = withContext(Dispatc
  * 明确提示"该源不支持什么"。
  *
  * 目标要求：源能力不足时**按能力显隐，或明确提示"该源不支持"**。
- * 只把按钮置灰是不够的 —— 用户会以为是 bug。这里把缺失的能力列出来，
- * 让置灰有解释（例如 EH 没有首页、Pica 的首页与历史端点未确认）。
+ * 只把按钮置灰不够 —— 用户会以为是 bug。
  */
 private fun capabilityHint(caps: Set<Capability>): String {
     val labels = listOf(
