@@ -134,3 +134,44 @@ TRICOMIX_PASS='…' .work/probe.sh pica "关键词" 1 full 账号
   当前版本零硬编码，改为环境变量/本地文件提供，缺失时明确报错；
 - **残留风险（如实记录）**：该密钥曾被推送，托管方可能短期保留未引用对象 ⇒ 应视为已暴露；
 - 三家仓库许可证统一 AGPL-3.0。
+
+---
+
+## 十、下次从哪里开始（给接手的人）
+
+### 先确认环境（本文件第三节的七个坑都还会遇到）
+
+```bash
+cd /data/data/com.termux/files/home/jmc/TriComiX
+.work/enter.sh 'bash .work/tc-all.sh'        # 全量单测（应全绿）
+.work/enter.sh 'bash .work/tc-apk.sh'        # 构建 APK
+su -c "pm install -r -t app-android/build/outputs/apk/debug/app-android-debug.apk"
+```
+
+### 当前该做什么
+
+按 `docs/ui-port-plan.md` 逐屏迁入，**顺序建议从 Detail 开始**（比 Search 少交互、比 Reader 少状态）：
+
+1. **Detail**：读 `ported-ui/screens/detail/DetailScreen.kt`（56 KB，先只 grep 结构），
+   按第七节同款清单换数据管道（`repo.album(id)` → `detail()`），保留其布局；
+2. **Search**：按第六节清单；注意已记录的**接口缺口**（排序/日期筛选、热词、随机推荐没有位置）；
+3. **Reader**：最后做，要同时处理 EH 的 `hath`（嵌在主机名里）与 JM 的反切片标记
+   （`ImageRequest.unscramble`）；预取已在 app 里实现，可直接复用其思路。
+
+### 两个已记录的接口缺口（做界面之前先决定要不要扩接口）
+
+- 搜索侧：筛选/热词/随机推荐在 `ComicSource` 里没有位置；
+- 收藏侧：只有 `favorites(page)` 读，没有写（`toggleFavorite` 与 `FAVORITE_WRITE` 待加）。
+  两边底层能力其实都在（EH 的请求地址、JM 的实现），缺的是接口位置。
+
+### 尚未拿到真机证据的一项
+
+**JM 源**：探针实证 45 条搜索 + 详情/标签；真机上还没点过。已修掉"未做主机发现"的缺陷
+（`JmSource` 现在首次使用时自动 `bootstrap()`），那很可能就是此前失败的原因。
+
+### 工作方式（本项目已经验证有效的）
+
+- 改动前先**核对锚点在文件里是否唯一**；多行改写与按行号删除在本机**都出过错**，
+  可靠做法是**整体重写文件**；
+- 每步：编译 + 单测 + 装包 + 核对 `git status` 后再 commit；
+- **构建失败时"安装成功"装的是旧包** —— 本会话踩过两次，务必看构建结果再看安装结果。
