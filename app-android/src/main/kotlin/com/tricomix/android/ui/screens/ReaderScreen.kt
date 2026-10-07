@@ -3,13 +3,12 @@ package com.tricomix.android.ui.screens
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,14 +22,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.tricomix.android.LiteFeatures
 import com.tricomix.android.data.image.JmImage
-import com.tricomix.core.model.Chapter
-import com.tricomix.android.ui.components.LoadingBox
 import com.tricomix.android.ui.components.ErrorBox
-import com.tricomix.android.ui.components.MessageState
+import com.tricomix.android.ui.components.LoadingBox
+import com.tricomix.core.model.Chapter
 import com.tricomix.core.model.Comic
 import com.tricomix.core.model.ImageQuality
 import com.tricomix.core.model.PageRef
@@ -41,18 +40,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import kotlin.math.abs
 
 /**
- * 阅读屏（搬迁自 JMNeXt 的 `ReaderScreen`，先搬"取图与翻页"这条主线）。
+ * 阅读屏（搬迁自 JMNeXt 的 `ReaderScreen`）。
  *
- * 与原项目一致的处理：
- * - **反切片**：JM 的图在服务端被切条打乱，直接用 [JmImage.unscramble]（含 `bands` 预检，
- *   算不出条带时原样返回）—— 这段逻辑本该属于阅读器，之前以私有函数躺在脚手架里；
- * - **预取**：按 [LiteFeatures] 的窗口预取相邻页，翻页命中缓存；
- * - **节流**：预取之间留间隔（EH 对密集请求会拒绝，并发取多张反而更易失败）；
- * - **取图请求头**：带浏览器 UA 与 Referer（EH 的图片主机拒绝裸请求）。
+ * 交互：**左右滑动翻页**（本轮补上，此前只能点按钮）；按钮保留，方便单手与误触恢复。
+ * 与原项目一致的处理：反切片（[JmImage] 含 bands 预检）、按 [LiteFeatures] 窗口预取并节流、
+ * 取图带浏览器 UA 与 Referer（EH 图片主机拒绝裸请求）。
  *
- * 尚未搬的交互：左右滑动翻页、双指缩放（下一轮做）。只吃 `core` 与 [ComicSource]。
+ * 尚未搬：双指缩放。只吃 `core` 与 [ComicSource]。
  */
 @Composable
 fun ReaderRoute(
@@ -68,14 +65,19 @@ fun ReaderRoute(
     var bitmap by remember(chapter.id, index) { mutableStateOf<ImageBitmap?>(null) }
     var imageError by remember(chapter.id, index) { mutableStateOf<String?>(null) }
 
+    fun go(delta: Int) {
+        val next = (index + delta).coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+        if (next != index) index = next
+    }
+
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = onBack) { Text("返回") }
-        Button(enabled = index > 0, onClick = { index -= 1 }) { Text("上一页") }
-        Button(enabled = index < pages.size - 1, onClick = { index += 1 }) { Text("下一页") }
+        Button(enabled = index > 0, onClick = { go(-1) }) { Text("上一页") }
+        Button(enabled = index < pages.size - 1, onClick = { go(1) }) { Text("下一页") }
     }
     Text(
-        "${index + 1} / ${pages.size}　预取 ${LiteFeatures.prefetchBefore}/${LiteFeatures.prefetchAfter}",
-        style = MaterialTheme.typography.bodySmall,
+        "${index + 1} / ${pages.size}　预取 ${LiteFeatures.prefetchBefore}/${LiteFeatures.prefetchAfter}　左右滑动可翻页",
+        style = MaterialTheme.typography.labelSmall,
     )
 
     val page = pages.getOrNull(index)
@@ -85,13 +87,14 @@ fun ReaderRoute(
             imageError = null
             source.imageRequest(page, ImageQuality.HIGH).fold(
                 onSuccess = { req ->
-                    val key = "${chapter.id}#${req.url}"
-                    val bmp = fetchCached(key, req.url, req.unscramble, page.extra["aid"]?.toIntOrNull())
-                    if (bmp == null) imageError = "图片下载或解码失败" else {
+                    val bmp = fetchCached("${chapter.id}#${req.url}", req.url, req.unscramble, page.extra["aid"]?.toIntOrNull())
+                    if (bmp == null) {
+                        imageError = "图片下载或解码失败"
+                    } else {
                         bitmap = bmp
                         onStatus("${index + 1}/${pages.size}")
+                        prefetch(scope, source, pages, index, chapter.id)
                     }
-                    prefetch(scope, source, pages, index, chapter.id)
                 },
                 onFailure = { imageError = "取图失败：${it.message}" },
             )
@@ -99,12 +102,28 @@ fun ReaderRoute(
     }
 
     when {
-        imageError != null -> Text("错误：$imageError")
-        bitmap == null -> CircularProgressIndicator(Modifier.padding(top = 12.dp))
+        imageError != null -> ErrorBox(message = imageError.orEmpty())
+        bitmap == null -> LoadingBox(Modifier.padding(top = 12.dp))
         else -> Image(
             bitmap = bitmap!!,
             contentDescription = "第 ${index + 1} 页",
-            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface)
+                // 横向滑动翻页：一次拖动只翻一页（按位移方向判定，阈值避免误触）
+                .pointerInput(chapter.id, index, pages.size) {
+                    var consumed = false
+                    detectHorizontalDragGestures(
+                        onDragStart = { consumed = false },
+                        onDragEnd = { consumed = false },
+                        onHorizontalDrag = { _, dragAmount ->
+                            if (!consumed && abs(dragAmount) > 60f) {
+                                consumed = true
+                                go(if (dragAmount < 0) 1 else -1)
+                            }
+                        },
+                    )
+                },
             contentScale = ContentScale.Fit,
         )
     }
