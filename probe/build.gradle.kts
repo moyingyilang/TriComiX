@@ -37,3 +37,13 @@ tasks.register<JavaExec>("jmProbe") {
     val a = (project.findProperty("jmArgs") as String? ?: "")
     args(a.split(" ").filter { it.isNotBlank() })
 }
+
+/** 定向 EH 探针：gradle :probe:ehProbe -PehArgs="<gid> <token>" */
+tasks.register<JavaExec>("ehProbe") {
+    group = "verification"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.tricomix.probe.EhProbeKt")
+    jvmArgs("-Djava.net.preferIPv4Stack=true", "-Dfile.encoding=UTF-8")
+    val a = (project.findProperty("ehArgs") as String? ?: "")
+    args(a.split(" ").filter { it.isNotBlank() })
+}
