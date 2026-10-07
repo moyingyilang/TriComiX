@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.tricomix.android.ui.components.ComicCard
 import com.tricomix.android.ui.screens.DetailRoute
 import com.tricomix.android.ui.screens.LoginForm
+import com.tricomix.android.ui.screens.ReaderRoute
 import com.tricomix.android.ui.screens.SearchRoute
 import com.tricomix.android.ui.SearchHistory
 import com.tricomix.core.model.Chapter
@@ -230,46 +231,14 @@ private fun App() {
                     lastChapterId = progress.lastChapterId(s.comic.id),
                     onStatus = { status = it },
                 )
-                is Screen.Reader -> {
-                    var index by remember(s) { mutableStateOf(0) }
-                    var bitmap by remember(s, index) { mutableStateOf<ImageBitmap?>(null) }
-                    var imageError by remember(s, index) { mutableStateOf<String?>(null) }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { screen = Screen.Search }) { Text("返回列表") }
-                        Button(enabled = index > 0, onClick = { index -= 1 }) { Text("上一页") }
-                        Button(enabled = index < s.pages.size - 1, onClick = { index += 1 }) { Text("下一页") }
-                    }
-                    Text(
-                        "${index + 1} / ${s.pages.size}　预取 ${LiteFeatures.prefetchBefore}/${LiteFeatures.prefetchAfter}　$status",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-
-                    val target = source()
-                    val page = s.pages.getOrNull(index)
-                    if (page != null) {
-                        LaunchedEffect(s, index) {
-                            bitmap = null; imageError = null
-                            target.imageRequest(page, ImageQuality.HIGH).fold(
-                                onSuccess = { req ->
-                                    val bmp = fetchCachedBitmap("${s.comic.id}#${req.url}", req.url, req.unscramble, page.extra["aid"]?.toIntOrNull()); prefetchPages(target, s.pages, index, scope)
-                                    if (bmp == null) imageError = "图片下载或解码失败" else bitmap = bmp
-                                },
-                                onFailure = { imageError = "取图失败：${it.message}" },
-                            )
-                        }
-                    }
-                    when {
-                        imageError != null -> Text("错误：$imageError")
-                        bitmap == null -> CircularProgressIndicator(Modifier.padding(top = 12.dp))
-                        else -> Image(
-                            bitmap = bitmap!!,
-                            contentDescription = "第 ${index + 1} 页",
-                            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface),
-                            contentScale = ContentScale.Fit,
-                        )
-                    }
-                }
+                is Screen.Reader -> ReaderRoute(
+                    comic = s.comic,
+                    chapter = s.chapter,
+                    pages = s.pages,
+                    source = source(),
+                    onBack = { screen = Screen.Search },
+                    onStatus = { status = it },
+                )
             }
         }
     }
