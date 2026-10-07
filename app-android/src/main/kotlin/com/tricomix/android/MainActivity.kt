@@ -228,6 +228,9 @@ private fun App() {
                     }
                     if (busy) CircularProgressIndicator(Modifier.padding(top = 8.dp))
                     Text(status, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall)
+                    capabilityHint(source().capabilities).takeIf { it.isNotEmpty() }?.let {
+                        Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                    }
                     Divider(Modifier.padding(vertical = 8.dp))
                     LazyColumn(Modifier.fillMaxSize()) {
                         items(results) { comic ->
@@ -324,4 +327,24 @@ private suspend fun fetchBitmap(url: String): ImageBitmap? = withContext(Dispatc
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
         }
     }.getOrNull()
+}
+
+/**
+ * 明确提示"该源不支持什么"。
+ *
+ * 目标要求：源能力不足时**按能力显隐，或明确提示"该源不支持"**。
+ * 只把按钮置灰是不够的 —— 用户会以为是 bug。这里把缺失的能力列出来，
+ * 让置灰有解释（例如 EH 没有首页、Pica 的首页与历史端点未确认）。
+ */
+private fun capabilityHint(caps: Set<Capability>): String {
+    val labels = listOf(
+        Capability.HOME to "首页",
+        Capability.SEARCH to "搜索",
+        Capability.FAVORITES to "收藏",
+        Capability.LOGIN to "登录",
+        Capability.HISTORY to "历史",
+        Capability.DOWNLOAD to "下载",
+    )
+    val missing = labels.filterNot { caps.contains(it.first) }.map { it.second }
+    return if (missing.isEmpty()) "" else "该源不支持：" + missing.joinToString("、")
 }
