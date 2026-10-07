@@ -145,3 +145,38 @@ Pica 需要先确认它的收藏写接口（`users/favourite` 目前只用于读
 Detail 目前**不显示**收藏按钮 —— 这是刻意的，等接口扩好再接。
 按目标要求，"不支持"要说出来而不是静默：界面上会体现为按钮不存在（该源无此能力），
 而不是出现一个点了没反应的按钮。
+
+## 九、DetailScreen 的改写清单（读 1316 行原文后得到）
+
+结构：`DetailViewModel`（约 160-520 行）+ `DetailScreen`（526）+ `DetailHeader`（736，封面区）
++ `DetailContent`（841，标签/简介/章节）+ `ChapterPager`（1237）。
+
+| 原文里的东西 | 处理 |
+| --- | --- |
+| `repo.bootstrap()` + `repo.album(comicId)` | → `ComicSource.detail(comicId)`（`bootstrap` 已由 `JmSource` 内部自动完成） |
+| `repo.coverUrl(id, addTime)` | → `comic.coverUrl`（`core.Comic` 已带） |
+| `AlbumDetail` / `SeriesItem` | → `ComicDetail` / `Chapter` |
+| **章节选择逻辑**（"单章节=从头开始"、"无章节时用作品 id 调 `comic_read`"） | **保留**：我已按同样规则实现（`MainActivity.openDetail` 里的单篇回退），原文注释与我的行为一致，可对账 |
+| `ChapterPager`（章节切换） | 保留布局 |
+| `DetailHeader`（封面区） | 保留布局；封面已用 Coil 接上（本会话已做） |
+| `CategoryChip` 组件 | 未搬 → 先直接用 `Text`，或按需搬该组件 |
+| `ComicCard` | 已搬并已改为吃 `core.Comic` |
+| `jmSharedElement` / `jmVanishWhenLeaving` / `jmComicSharedKey` | 共享元素过渡 → 已有 `jmSharedElement` 空实现；其余按需补桩 |
+| `ReadProgressStore`（本地阅读进度） | **属于上层本机状态**，可移植（该实现已在 `source-jm` 里，直接复用） |
+| 跟踪（`isTracked`/`toggleTracking`）、点赞（`like`）、下载（`albumDownload`）、收藏夹（`folderList`/`editFavoriteFolder`）、收藏标签（`updateFavoriteTags`） | **统一接口都没有** → 按能力显隐或不做（见下方缺口） |
+| `TagPickerDialog` / `FolderPickerDialog` | 依赖 JM 的收藏体系 → **不搬** |
+
+### 这一屏暴露的第三个接口缺口：Interaction 类操作
+
+统一接口目前只有"读"与登录，**没有**这些"写/互动"操作：
+
+| 操作 | 原文方法 | 建议 |
+| --- | --- | --- |
+| 收藏（加/取消） | `toggleFavorite` | 加 `toggleFavorite(comicId, favorite)` 与 `Capability.FAVORITE_WRITE`（EH/JM 底层都已具备，见第八节） |
+| 点赞 | `like` | 加 `Capability.LIKE`（JM 有实现；其他源未必支持） |
+| 跟踪更新 | `isTracked` / `toggleTracking` | JM 专有概念，建议**不进入统一接口** |
+| 下载 | `albumDownload` | 属于 `Capability.DOWNLOAD`，但实现是源特异的，本轮不做 |
+| 收藏夹/标签管理 | `folderList` / `editFavoriteFolder` / `updateFavoriteTags` | JM 专有，建议不进统一接口 |
+
+**原则不变**：接口里没有的能力，界面就不显示对应按钮（或显示"该源不支持"），
+绝不出现点了没反应的控件。
