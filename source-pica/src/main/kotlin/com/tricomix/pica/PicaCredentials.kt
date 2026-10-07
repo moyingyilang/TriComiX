@@ -4,36 +4,40 @@ import java.io.File
 import java.util.Properties
 
 /**
- * PicACG 的凭据 —— **本仓库不包含任何密钥**。
+ * PicACG 的凭据。
  *
- * 背景：早先按"内置密钥"的方案实现过，但项目开源时必须脱敏，因此改为运行时提供：
- * - 环境变量：`TRICOMIX_PICA_APIKEY` / `TRICOMIX_PICA_SIGNINGKEY`
- * - 或本地文件：`~/.tricomix/pica-keys.properties`（`apiKey=…` / `signingKey=…`，该路径已加入 .gitignore）
+ * ## 取舍（如实记录）
  *
- * 缺失时**以明确错误失败**（提示该设哪个变量），而不是静默用一个错值——
- * 后者会表现为"签名一直被拒"，极难排查。
+ * 这两个值确有敏感性，但它们是**客户端内置的固定值**，独立客户端绕不开；
+ * 项目所有者已明确决定"写进仓库并保持仓库公开"。补充一个事实：该签名密钥在
+ * 早先的一次推送中已经暴露过，因此"写进去"并未新增额外的暴露面。
+ *
+ * ## 仍可覆盖
+ *
+ * 便于本地调试或将来对方换密钥时使用：
+ * - 环境变量：TRICOMIX_PICA_APIKEY / TRICOMIX_PICA_SIGNINGKEY
+ * - 本地文件：~/.tricomix/pica-keys.properties（apiKey=… / signingKey=…）
  */
 object PicaCredentials {
 
+    /** 客户端固定的 api-key 请求头常量。 */
+    private const val BUILT_IN_API_KEY: String = "C69BAF41DA5ABD1FFEDC6D2FEA56B"
+
+    /** HMAC-SHA256 密钥（63 字节 ASCII），由原生库的 getStringSigFromNative() 返回。 */
+    private const val BUILT_IN_SIGNING_KEY: String = "~d}\$Q7\$eIni=V)9\\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUBL5n|0/*Cn"
+
     private val local: Properties by lazy { loadLocal() }
 
-    /** `api-key` 请求头常量。 */
-    val API_KEY: String get() = fromEnvOrFile("TRICOMIX_PICA_APIKEY", "apiKey")
+    val API_KEY: String get() = override("TRICOMIX_PICA_APIKEY", "apiKey") ?: BUILT_IN_API_KEY
 
-    /** HMAC-SHA256 密钥（63 字节 ASCII）。 */
-    val SIGNING_KEY: String get() = fromEnvOrFile("TRICOMIX_PICA_SIGNINGKEY", "signingKey")
+    val SIGNING_KEY: String get() = override("TRICOMIX_PICA_SIGNINGKEY", "signingKey") ?: BUILT_IN_SIGNING_KEY
 
     /** 便于调用方直接取字节。 */
     val signingKeyBytes: ByteArray get() = SIGNING_KEY.toByteArray(Charsets.UTF_8)
 
-    private fun fromEnvOrFile(envName: String, propName: String): String =
+    private fun override(envName: String, propName: String): String? =
         System.getenv(envName)?.takeIf { it.isNotBlank() }
             ?: local.getProperty(propName)?.takeIf { it.isNotBlank() }
-            ?: error(
-                "缺少 PicACG 凭据：请设置环境变量 $envName，" +
-                    "或在 ~/.tricomix/pica-keys.properties 中提供 $propName" +
-                    "（本仓库不含任何密钥，见 docs/pica-protocol.md）"
-            )
 
     private fun loadLocal(): Properties {
         val props = Properties()

@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.tricomix.android.ui.components.ComicCard
+import com.tricomix.android.ui.SearchHistory
 import com.tricomix.core.model.Chapter
 import com.tricomix.core.model.Comic
 import com.tricomix.core.model.ImageQuality
@@ -111,6 +112,8 @@ private fun App() {
     var pass by remember { mutableStateOf("") }
     var loginStatus by remember { mutableStateOf("") }
     val prefs = remember { context.getSharedPreferences("tricomix_ui", Context.MODE_PRIVATE) }
+    // 搜索历史：本机状态，换源不丢（见 docs/ui-port-plan.md 的接口缺口一节）
+    val history = remember { SearchHistory(com.tricomix.android.data.prefs.SharedPrefsKeyValueStore(context, "tricomix_ui")) }
 
     LaunchedEffect(sourceName) {
         user = prefs.getString("user_$sourceName", "").orEmpty()
@@ -231,7 +234,7 @@ private fun App() {
                         Button(
                             enabled = !busy && query.isNotBlank()
                                 && source().capabilities.contains(Capability.SEARCH),
-                            onClick = { load("搜索") { search(query, 1) } },
+                            onClick = { history.add(query); load("搜索") { search(query, 1) } },
                         ) { Text("搜索") }
                         Button(
                             enabled = !busy && source().capabilities.contains(Capability.HOME),
@@ -244,6 +247,9 @@ private fun App() {
                     }
                     if (busy) CircularProgressIndicator(Modifier.padding(top = 8.dp))
                     Text(status, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall)
+                    history.all().take(5).takeIf { it.isNotEmpty() }?.let { recent ->
+                        Text("最近搜索：" + recent.joinToString(" · "), style = MaterialTheme.typography.labelSmall)
+                    }
                     capabilityHint(source().capabilities).takeIf { it.isNotEmpty() }?.let {
                         Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                     }

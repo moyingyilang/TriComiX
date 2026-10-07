@@ -139,3 +139,8 @@ gradle -q :probe:ehProbe -PehArgs="<gid> <token>"
 | `docs/ui-port-plan.md` | 界面搬迁方案（JMNeXt 屏幕清单与逐屏改写清单） |
 | `docs/pica-protocol.md` | PicACG 协议：端点、请求头、5 段签名、档位映射 |
 | `docs/eh-protocol.md` | E-Hentai 协议：域名、解析器地图、`hath` 机制 |
+
+> **凭据现状（更新）**：按项目所有者的决定，PicACG 的两个常量现在**直接内置**在
+> `source-pica/…/PicaCredentials.kt` 中，仓库保持公开。环境变量与本地文件仍可覆盖（便于调试或换密钥）。
+> 需要注意：该签名密钥在此前一次推送中已经暴露过，因此这一决定并未新增暴露面，
+> 但仓库公开意味着任何人都能取得这两个值。详见 `docs/pica-protocol.md` 文末。
