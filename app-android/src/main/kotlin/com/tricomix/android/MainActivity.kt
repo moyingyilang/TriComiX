@@ -42,6 +42,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.tricomix.android.ui.components.ComicCard
+import com.tricomix.android.ui.components.ambientBase
+import com.tricomix.android.ui.components.GlassTopBar
 import com.tricomix.android.ui.screens.DetailRoute
 import com.tricomix.android.ui.screens.LoginForm
 import com.tricomix.android.ui.screens.ReaderRoute
@@ -168,8 +170,9 @@ private fun App() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("TriComiX · $sourceName") },
+            GlassTopBar(
+                title = "TriComiX",
+                subtitle = sourceName,
                 actions = {
                     Button(onClick = {
                         sourceName = when (sourceName) { "EH" -> "Pica"; "Pica" -> "JM"; else -> "EH" }
@@ -182,7 +185,7 @@ private fun App() {
             )
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
+        Column(Modifier.fillMaxSize().ambientBase().padding(padding).padding(12.dp)) {
             when (val s = screen) {
                 is Screen.Search -> SearchRoute(
                     source = source(),
