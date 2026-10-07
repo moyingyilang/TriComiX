@@ -307,7 +307,10 @@ private fun App() {
                         Button(enabled = index > 0, onClick = { index -= 1 }) { Text("上一页") }
                         Button(enabled = index < s.pages.size - 1, onClick = { index += 1 }) { Text("下一页") }
                     }
-                    Text("${index + 1} / ${s.pages.size}　$status", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "${index + 1} / ${s.pages.size}　预取 ${LiteFeatures.prefetchBefore}/${LiteFeatures.prefetchAfter}　$status",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
 
                     val target = source()
                     val page = s.pages.getOrNull(index)
