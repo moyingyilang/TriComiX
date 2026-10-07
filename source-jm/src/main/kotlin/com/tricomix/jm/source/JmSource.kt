@@ -31,7 +31,8 @@ class JmSource(private val repo: JmRepository) : ComicSource {
 
     override val id: String = "jm"
     override val displayName: String = "JMComic"
-    override val capabilities: Set<Capability> = setOf(Capability.LOGIN, Capability.SEARCH, Capability.HOME)
+    override val capabilities: Set<Capability> =
+        setOf(Capability.LOGIN, Capability.SEARCH, Capability.HOME, Capability.FAVORITE_WRITE)
 
     override suspend fun login(credential: SourceCredential): Result<Session> = src {
         val u = credential.fields["username"] ?: throw SourceError.Auth("缺少 username")
@@ -109,7 +110,17 @@ class JmSource(private val repo: JmRepository) : ComicSource {
     }
 
     override suspend fun favorites(page: Int): Result<Paged<Comic>> =
-        Result.failure(SourceError.Unsupported("JM 源的收藏尚未接入（见 JmSource 注释）"))
+        Result.failure(SourceError.Unsupported("JM 源的收藏列表尚未接入（写入已支持，见 toggleFavorite）"))
+
+    /**
+     * 切换收藏。底层 [com.tricomix.jm.data.JmRepository.toggleFavorite] 本身就是"切换"语义，
+     * 这里按 [com.tricomix.jm.data.remote.dto.ActionResult.isOk] 判断是否真的成功 ——
+     * 业务失败（封套 200 但 `status != "ok"`）必须报错，不能当成成功。
+     */
+    override suspend fun toggleFavorite(comicId: String): Result<Unit> = src {
+        val r = repo.toggleFavorite(comicId)
+        if (!r.isOk) throw SourceError.Unknown(r.msg ?: "JM 收藏操作未成功（status=${r.status}）")
+    }
 
     override suspend fun history(page: Int): Result<Paged<Comic>> =
         Result.failure(SourceError.Unsupported("JM 源的历史尚未接入（见 JmSource 注释）"))
