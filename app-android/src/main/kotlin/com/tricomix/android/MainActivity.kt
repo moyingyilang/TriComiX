@@ -286,6 +286,8 @@ private fun App() {
                     Button(onClick = { screen = Screen.Search }) { Text("返回") }
                     Text(s.comic.title, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
                     Text(s.comic.tags.joinToString(", "), style = MaterialTheme.typography.bodySmall)
+                    // 详情页也提示能力缺口（例如没有收藏写能力时不显示收藏按钮，但要说清为什么）
+                    capabilityHint(source().capabilities).takeIf { it.isNotEmpty() }?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error) }
                     if (s.chapters.isEmpty()) Text("这个源没有给出章节", modifier = Modifier.padding(top = 8.dp))
                     LazyColumn(Modifier.fillMaxSize()) {
                         items(s.chapters, key = { it.id }) { chapter ->
