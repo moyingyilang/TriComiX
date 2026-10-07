@@ -6,130 +6,134 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 列表解析单测。**样本是我们自己写的合成 HTML**（结构取自对参照实现的静态阅读），
- * 真实页面由使用者在自己环境验证。
+ * 列表解析单测。样本**照抄真实页面的行结构**（抓取一张真实搜索结果页后得到），
+ * 而不是我凭想象写的形状。
  *
- * 注意样本的关键形状：**缩略图与标题在同一个单元格里**。参照实现是拿同一个 `element`
- * 先找 `glthumb` 再找 `glname`，最初我把它们写成两个 `td`，测试立刻失败了 —— 是样本不真实，
- * 不是解析器太严。
+ * 真实行结构（`table.itg.gltc`，四列）：
+ * ```
+ * <tr><td class="gl1c glcat">分类</td>
+ *     <td class="gl2c"><div class="glthumb"><img src="…"></div><div id="postedpop_<gid>">时间</div></td>
+ *     <td><a class="glname" href="/g/<gid>/<token>/">标题</a> <div>12 pages</div> <a href="/tag/…">…</a></td>
+ *     <td><span class="glhide">上传者</span></td></tr>
+ * ```
  */
 class GalleryListParserTest {
 
     private val html = """
     <html><body>
-    <table class="itg">
-      <tr><td class="itg">分类</td><td>标题</td></tr>
+    <table class="itg gltc">
+      <tr><th></th><th>Published</th><th>Title</th><th class="glhide">Uploader</th></tr>
       <tr>
-        <td class="gl1e">
-          <div class="gl1e">
-            <div>Doujinshi</div>
-            <a href="https://e-hentai.org/g/1234567/abc123def/">
-              <img class="glthumb" data-src="https://ehgt.org/t/1234567-1.jpg" src="">
-            </a>
-          </div>
-          <a class="glname" href="https://e-hentai.org/g/1234567/abc123def/">测试标题一</a>
-          <div class="gl3e"><a href="https://e-hentai.org/uploader/alice">alice</a></div>
+        <td class="gl1c glcat"><div class="cn ct1">Misc</div></td>
+        <td class="gl2c">
+          <div class="glthumb" id="it4236322"><div><img src="https://ehgt.org/w/02/698/01728-2huj354s.webp" /></div></div>
+          <div><div id="postedpop_4236322">2026-10-06 21:27</div></div>
+        </td>
+        <td>
+          <a class="glname" href="https://e-hentai.org/g/4236322/e84511a768/">Style Test [AI Generated]</a>
+          <div class="glink">Style Test [AI Generated]</div>
           <div>12 pages</div>
           <a href="https://e-hentai.org/tag/language/chinese">language/chinese</a>
-          <a href="https://e-hentai.org/tag/artist/bob">artist/bob</a>
-          <div id="posted_1234567">2024-01-02 03:04</div>
           <div style="width:85%"></div>
         </td>
+        <td><span class="glhide">someUploader</span></td>
       </tr>
       <tr>
-        <td class="gl3t">
-          <div class="gl3t">
-            <a href="https://exhentai.org/g/7654321/fff000/">
-              <img src="https://ehgt.org/t/7654321-1.jpg">
-            </a>
-          </div>
-          <a class="glname" href="https://exhentai.org/g/7654321/fff000/">测试标题二</a>
-          <div>1,234 pages</div>
+        <td class="gl1c glcat"><div class="cn ct1">Doujinshi</div></td>
+        <td class="gl2c">
+          <div class="glthumb"><div><img data-src="https://ehgt.org/t/2.webp" src="" /></div></div>
+          <div><div id="postedpop_7654321">2026-01-01 00:00</div></div>
         </td>
+        <td><a class="glname" href="https://exhentai.org/g/7654321/fff000/">第二条</a><div>1,234 pages</div></td>
+        <td><span class="glhide">另一作者</span></td>
       </tr>
     </table>
     </body></html>
     """.trimIndent()
 
+    private fun parsed() = GalleryListParser.parse(html, "https://e-hentai.org/")
+
     @Test
-    fun `解析出两条，并正确取到 gid 与 token`() {
-        val items = GalleryListParser.parse(html, "https://e-hentai.org/")
+    fun `解析出两条并取到 gid 与 token`() {
+        val items = parsed()
         assertEquals(2, items.size)
-        assertEquals(1234567L, items[0].gid)
-        assertEquals("abc123def", items[0].token)
+        assertEquals(4236322L, items[0].gid)
+        assertEquals("e84511a768", items[0].token)
         assertEquals(7654321L, items[1].gid)
         assertEquals("fff000", items[1].token)
     }
 
     @Test
-    fun `标题取自 glname`() {
-        val items = GalleryListParser.parse(html, "https://e-hentai.org/")
-        assertEquals("测试标题一", items[0].title)
-        assertEquals("测试标题二", items[1].title)
+    fun `缩略图能取到（真实布局里它在另一列）`() {
+        val items = parsed()
+        assertEquals("https://ehgt.org/w/02/698/01728-2huj354s.webp", items[0].thumbUrl)
+        assertEquals("https://ehgt.org/t/2.webp", items[1].thumbUrl, "应优先 data-src")
     }
 
     @Test
-    fun `缩略图优先 data-src 再退到 src`() {
-        val items = GalleryListParser.parse(html, "https://e-hentai.org/")
-        assertEquals("https://ehgt.org/t/1234567-1.jpg", items[0].thumbUrl)
-        assertEquals("https://ehgt.org/t/7654321-1.jpg", items[1].thumbUrl)
+    fun `上传者取自 glhide（真实布局里也在另一列）`() {
+        assertEquals("someUploader", parsed()[0].uploader)
+        assertEquals("另一作者", parsed()[1].uploader)
     }
 
     @Test
-    fun `页数支持千分位逗号`() {
-        val items = GalleryListParser.parse(html, "https://e-hentai.org/")
-        assertEquals(12, items[0].pages)
-        assertEquals(1234, items[1].pages)
+    fun `分类取自 glcat`() {
+        assertEquals("Misc", parsed()[0].category)
+        assertEquals("Doujinshi", parsed()[1].category)
     }
 
     @Test
-    fun `上传者 发布时间 标签 评分`() {
-        val first = GalleryListParser.parse(html, "https://e-hentai.org/")[0]
-        assertEquals("alice", first.uploader)
-        assertEquals("2024-01-02 03:04", first.posted)
-        assertEquals(listOf("language/chinese", "artist/bob"), first.tags)
+    fun `发布时间取自 postedpop_ 前缀的 id`() {
+        assertEquals("2026-10-06 21:27", parsed()[0].posted)
+        assertEquals("2026-01-01 00:00", parsed()[1].posted)
+    }
+
+    @Test
+    fun `标题 页数 标签 评分`() {
+        val first = parsed()[0]
+        assertEquals("Style Test [AI Generated]", first.title)
+        assertEquals(12, first.pages)
+        assertEquals(listOf("language/chinese"), first.tags)
         assertEquals(8.5f, first.rating)
+        assertEquals(1234, parsed()[1].pages, "千分位逗号要能解析")
     }
 
     @Test
     fun `表头行不会产生条目`() {
-        val items = GalleryListParser.parse(html, "https://e-hentai.org/")
-        assertTrue(items.none { it.title == "标题" })
+        assertTrue(parsed().none { it.title == "Title" })
     }
 
     @Test
     fun `没有 itg 表格时返回空列表而不是抛异常`() {
-        assertEquals(0, GalleryListParser.parse("<html><body>nothing</body></html>", "https://e-hentai.org/").size)
+        assertEquals(0, GalleryListParser.parse("<html>nothing</html>", "https://e-hentai.org/").size)
     }
 
     @Test
-    fun `缺少可解析链接的单元格被跳过`() {
-        val onlyHeader = """<table class="itg"><tr><td class="itg">分类</td><td>标题</td></tr></table>"""
-        assertEquals(0, GalleryListParser.parse(onlyHeader, "https://e-hentai.org/").size)
+    fun `缺评分时返回 null 而不是 0`() {
+        assertNull(parsed()[1].rating)
     }
 
     @Test
     fun `条目自带规范 URL`() {
-        val first = GalleryListParser.parse(html, "https://e-hentai.org/")[0]
-        assertEquals("https://e-hentai.org/g/1234567/abc123def/", first.url)
+        assertEquals("https://e-hentai.org/g/4236322/e84511a768/", parsed()[0].url)
     }
+}
+
+/** 追加：真实布局里 glhide 同时含上传者与页数，必须剥掉页数。 */
+class EhUploaderCleanupTest {
 
     @Test
-    fun `没有评分的条目返回 null 而不是 0`() {
-        val second = GalleryListParser.parse(html, "https://e-hentai.org/")[1]
-        assertNull(second.rating)
-    }
-
-    @Test
-    fun `style 里写图片地址时也能取到`() {
-        val styleHtml = """
-        <table class="itg"><tr><td>
-          <div class="gl1e"><img style="background-image:url('https://ehgt.org/t/s1.jpg')"></div>
-          <a class="glname" href="https://e-hentai.org/g/1/aa/">来自 style</a>
-        </td></tr></table>
+    fun `glhide 里的页数会被剥离`() {
+        val html = """
+        <table class="itg gltc"><tr>
+          <td class="gl1c glcat"><div>Misc</div></td>
+          <td class="gl2c"><div class="glthumb"><img src="https://ehgt.org/x.webp"></div></td>
+          <td><a class="glname" href="https://e-hentai.org/g/1/aa/">T</a></td>
+          <td><span class="glhide">Cichol24 189 pages</span></td>
+        </tr></table>
         """.trimIndent()
-        val items = GalleryListParser.parse(styleHtml, "https://e-hentai.org/")
-        assertEquals(1, items.size)
-        assertEquals("https://ehgt.org/t/s1.jpg", items[0].thumbUrl)
+        val item = GalleryListParser.parse(html, "https://e-hentai.org/")[0]
+        assertEquals("Cichol24", item.uploader)
+        assertEquals(189, item.pages)
     }
 }
