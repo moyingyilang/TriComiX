@@ -61,3 +61,22 @@
 - 各源能力不同（EH 无"首页"、Pica 无"首页/历史"），界面必须**按能力显隐**，
   不能假设每个源都有全部能力；
 - 目前的三屏最小界面（`MainActivity.kt`）是脚手架，批次 1 起会被逐步替换。
+
+## 六、HomeScreen 的实际改写清单（读 430 行原文后得到）
+
+`ported-ui/screens/home/HomeScreen.kt` 的耦合面与处理方式：
+
+| 原文里的东西 | 处理 |
+| --- | --- |
+| `LocalRepository.current`（CompositionLocal 提供 `JmRepository`） | **删掉**；改由参数传入 `ComicSource` |
+| `HomeViewModel(repo)`、`state.sections/latest/promoteError` | **换掉**：新写一个只依赖 `ComicSource.home()` 的状态持有者（`List<Section>` + 一个错误串） |
+| `repo.promote()` / `repo.latest()` / `repo.weekIssues()` | → `ComicSource.home()`；**首页缺失时按能力显示"该源不支持首页"** |
+| `repo.coverUrl(comic)` | → `comic.coverUrl`（`core.Comic` 已带） |
+| `ListItem` 等 JM DTO | → `core.Comic` |
+| tag 屏蔽（`hiddenFlow` / `tagBlocker` / `hiddenIds`） | **丢掉**（JM 专有；统一接口不表达屏蔽规则） |
+| `com.jmnext.ui.*` 导入 | 映射为 `com.tricomix.android.ui.*`（组件已迁入） |
+| 布局本身（Section 标题、LazyColumn/grid、加载与错误态的支架） | **保留**（这正是"沿用其界面"的部分） |
+
+**结论**：HomeScreen 的**布局可复用**，要换的是"数据管道 + 状态形状 + 屏蔽逻辑"。
+Home 之后，Search / Detail / Reader 是同一套路子（换数据管道、留布局），
+其中 Reader 额外要处理 EH 的 `hath` 与 JM 的反切片标记。
