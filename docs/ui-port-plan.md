@@ -114,3 +114,34 @@ Home 之后，Search / Detail / Reader 是同一套路子（换数据管道、�
   `Capability.SEARCH_FILTERS`，各源按自身支持情况实现或忽略。
 
 在扩展之前**不假装支持**：界面里不会出现"点了没反应"的筛选器。
+
+## 八、第二个接口缺口：收藏的"写"操作（Detail 屏需要）
+
+现状（实测接口表）：
+
+| 层 | 有什么 | 缺什么 |
+| --- | --- | --- |
+| `ComicSource` | `favorites(page)` —— 只能**读**收藏列表 | **没有**"加收藏/取消收藏" |
+| `source-eh` | `EhUrl.addFavorite(gid, token)` —— 请求地址已具备 | 没有暴露到源接口，也没有解析返回 |
+| `source-jm` | `JmRepository.toggleFavorite(aid)` —— 实现已存在 | 适配器没有转发 |
+
+也就是说：**底层能力基本都在，缺的是接口上的一个位置**。
+
+### 建议的扩展（等有人拍板再做）
+
+```kotlin
+// core：新增一个能力与一个方法
+Capability.FAVORITE_WRITE
+
+suspend fun toggleFavorite(comicId: String, favorite: Boolean): Result<Boolean>
+```
+
+各源按自身情况实现：EH 用已有的 `addFavorite` 地址；JM 转发 `toggleFavorite`；
+Pica 需要先确认它的收藏写接口（`users/favourite` 目前只用于读取）。
+**没有该能力的源，界面不显示收藏按钮**，而不是"点了没反应"。
+
+### Detail 屏因此的临时处理
+
+Detail 目前**不显示**收藏按钮 —— 这是刻意的，等接口扩好再接。
+按目标要求，"不支持"要说出来而不是静默：界面上会体现为按钮不存在（该源无此能力），
+而不是出现一个点了没反应的按钮。
