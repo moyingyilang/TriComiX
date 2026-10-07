@@ -248,7 +248,11 @@ private fun App() {
                     if (busy) CircularProgressIndicator(Modifier.padding(top = 8.dp))
                     Text(status, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall)
                     history.all().take(5).takeIf { it.isNotEmpty() }?.let { recent ->
-                        Text("最近搜索：" + recent.joinToString(" · "), style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            "最近搜索（点一下填入最近的一条）：" + recent.joinToString(" · "),
+                            modifier = Modifier.clickable { query = recent.first() },
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                     }
                     capabilityHint(source().capabilities).takeIf { it.isNotEmpty() }?.let {
                         Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
