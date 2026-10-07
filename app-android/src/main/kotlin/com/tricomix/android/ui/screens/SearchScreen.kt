@@ -63,6 +63,8 @@ fun SearchRoute(
     history: SearchHistory,
     login: @Composable () -> Unit,
     onOpen: (Comic) -> Unit,
+    /** 外部（侧栏）请求切换到的页签；为 null 表示由本屏自行决定。 */
+    requestedTab: SearchTab? = null,
     onRecentsChanged: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
@@ -74,6 +76,9 @@ fun SearchRoute(
     var results by remember { mutableStateOf<List<Comic>>(emptyList()) }
     var failed by remember { mutableStateOf(false) }
     var page by remember { mutableStateOf(1) }
+
+    // 侧栏请求切换页签时跟随（否则侧栏点了没反应）
+    LaunchedEffect(requestedTab) { requestedTab?.let { tab = it } }
     var hasMore by remember { mutableStateOf(false) }
     var recents by remember { mutableStateOf(history.all()) }
     val caps = source.capabilities

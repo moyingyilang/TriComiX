@@ -119,6 +119,10 @@ private fun App() {
     var pass by remember { mutableStateOf("") }
     var loginStatus by remember { mutableStateOf("") }
     val prefs = remember { context.getSharedPreferences("tricomix_ui", Context.MODE_PRIVATE) }
+
+    // 侧栏开关，以及侧栏请求切换到的页签
+    var navOpen by remember { mutableStateOf(false) }
+    var requestedTab by remember { mutableStateOf<com.tricomix.android.ui.screens.SearchTab?>(null) }
     // 搜索历史：本机状态，换源不丢（见 docs/ui-port-plan.md 的接口缺口一节）
     val history = remember { SearchHistory(com.tricomix.android.data.prefs.SharedPrefsKeyValueStore(context, "tricomix_ui")) }
     // 阅读进度属于本机状态（与图源无关），实现搬自 JMNeXt 的 ReadProgressStore
@@ -174,6 +178,7 @@ private fun App() {
                 title = "TriComiX",
                 subtitle = sourceName,
                 actions = {
+                    Button(onClick = { navOpen = !navOpen }) { Text(if (navOpen) "关闭侧栏" else "菜单") }
                     Button(onClick = {
                         sourceName = when (sourceName) { "EH" -> "Pica"; "Pica" -> "JM"; else -> "EH" }
                         screen = Screen.Search
@@ -186,10 +191,38 @@ private fun App() {
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().ambientBase().padding(padding).padding(12.dp)) {
+            if (navOpen) {
+                com.tricomix.android.ui.GlassSideNav(
+                    sourceName = sourceName,
+                    caps = source().capabilities,
+                    currentRoute = if (screen is Screen.Search) (requestedTab?.name?.lowercase() ?: "search") else "reading",
+                    loginLabel = loginStatus.ifBlank { "未登录（点击登录）" },
+                    onSelectSource = { name -> sourceName = name; screen = Screen.Search; requestedTab = null; navOpen = false },
+                    onNavigate = { route ->
+                        when (route) {
+                            "home", "search", "favorites" -> {
+                                requestedTab = when (route) {
+                                    "home" -> com.tricomix.android.ui.screens.SearchTab.Home
+                                    "favorites" -> com.tricomix.android.ui.screens.SearchTab.Favorites
+                                    else -> com.tricomix.android.ui.screens.SearchTab.Search
+                                }
+                                screen = Screen.Search
+                            }
+                            "settings", "about" -> status = if (route == "about") "TriComiX 0.2.0-preview · 界面搬迁自 JMNeXt（AGPL-3.0）" else "设置项尚未实现"
+                            "history" -> status = "该源不支持历史"
+                            "follow" -> status = "该源不支持追更"
+                        }
+                        navOpen = false
+                    },
+                    onLoginClick = { requestedTab = com.tricomix.android.ui.screens.SearchTab.Search; screen = Screen.Search; navOpen = false },
+                )
+                androidx.compose.material3.Divider()
+            }
             when (val s = screen) {
                 is Screen.Search -> SearchRoute(
                     source = source(),
                     sourceName = sourceName,
+                    requestedTab = requestedTab,
                     history = history,
                     login = {
                         LoginForm(
